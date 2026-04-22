@@ -19,7 +19,7 @@ self-contained — no external services, no auth, no database.
 ```bash
 pip install -r requirements.txt
 python -m pytest tests/                           # 39 passing unit tests, 1 skipped
-python -m desktop --web                           # browser opens at http://localhost:5200
+python __main__.py --web                          # browser opens at http://localhost:5200
 ```
 
 Run the end-to-end portfolio flow against the running server:

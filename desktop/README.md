@@ -43,7 +43,7 @@ pip install -r requirements.txt
 python -m pytest tests/
 
 # launch the web GUI (browser opens at http://localhost:5200)
-python -m desktop --web
+python __main__.py --web
 ```
 
 Upload `tests/fixtures/flying200_sample.fit` from the UI to see the full flow with
