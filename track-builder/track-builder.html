@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Geometry Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg0: #080C12;
+  --bg1: #0E1420;
+  --bg2: #151D2B;
+  --bg3: #1C2636;
+  --border: #1E2A3A;
+  --border-accent: #2A3A4E;
+  --text-primary: #E8ECF0;
+  --text-secondary: #7A8BA0;
+  --text-muted: #4A5568;
+  --accent: #E5A836;
+  --accent-dim: #B8862D;
+  --accent-glow: rgba(229, 168, 54, 0.12);
+  --danger: #EF4444;
+  --info: #38BDF8;
+  --success: #22C55E;
+  --track-surface: #ffe4c4;
+  --cote-azur: #87CEEB;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+
+html, body { height: 100%; background: var(--bg0); color: var(--text-primary); font-family: var(--font-display); overflow: hidden; }
+
+#app {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  height: 100vh;
+}
+
+/* ── Controls Panel ── */
+#controls {
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#controls::-webkit-scrollbar { width: 6px; }
+#controls::-webkit-scrollbar-track { background: transparent; }
+#controls::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 3px; }
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+/* Presets */
+.preset-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 7px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.preset-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
+.preset-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+/* Parameter rows */
+.param-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.param-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 70px 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.param-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.param-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--bg3);
+  border-radius: 2px;
+  outline: none;
+}
+.param-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg1);
+}
+.param-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg1);
+}
+
+.param-input {
+  width: 100%;
+  padding: 3px 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+  outline: none;
+}
+.param-input:focus { border-color: var(--accent); }
+
+.param-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Computed values */
+.computed-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+.computed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 2px 0;
+}
+.computed-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.computed-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.computed-item.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Export */
+.export-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.export-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
+
+.export-area {
+  width: 100%;
+  height: 120px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 8px;
+  resize: vertical;
+  outline: none;
+  display: none;
+}
+.export-area.visible { display: block; }
+
+/* Trajectory grid scrollbar */
+#trajectory-grid::-webkit-scrollbar { width: 6px; }
+#trajectory-grid::-webkit-scrollbar-track { background: transparent; }
+#trajectory-grid::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 3px; }
+#trajectory-grid input[type="number"]::-webkit-inner-spin-button { opacity: 0.3; }
+#trajectory-grid input:focus { border-color: var(--accent) !important; }
+
+/* ── SVG Viewport ── */
+#viewport {
+  background: var(--bg0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+#trackSvg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Info overlay */
+#info-overlay {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: rgba(14, 20, 32, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  line-height: 1.6;
+}
+#info-overlay .val { color: var(--accent); font-weight: 500; }
+
+/* Section divider */
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Controls Panel -->
+<div id="controls">
+  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
+    <span style="font-size:16px;font-weight:700;color:var(--accent);">Track Builder</span>
+    <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);">v0.1</span>
+  </div>
+
+  <!-- Load / Save -->
+  <div style="display:flex;flex-direction:column;gap:5px;">
+    <select id="preset-select" style="width:100%;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:var(--font-display);font-size:12px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%237A8BA0%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
+      <option value="" disabled>Select a track...</option>
+    </select>
+    <button class="export-btn" id="new-track-btn" style="width:100%;padding:7px;font-size:12px;font-weight:600;color:var(--success);border-color:var(--success);">+ New Track</button>
+    <input type="text" class="param-input" id="save-track-name" placeholder="Track name" style="width:100%;text-align:left;font-family:var(--font-display);font-size:12px;padding:7px 10px;border-radius:6px;">
+    <div style="display:flex;gap:6px;">
+      <input type="number" class="param-input" id="save-track-altitude" placeholder="Altitude" value="0" style="flex:1;text-align:left;font-size:11px;padding:7px 10px;border-radius:6px;">
+      <span style="font-size:10px;color:var(--text-muted);align-self:center;">m</span>
+      <button class="export-btn" id="save-config-btn" style="flex:1;padding:7px;font-size:12px;font-weight:600;color:var(--accent);border-color:var(--accent-dim);background:var(--accent-glow);">Save</button>
+    </div>
+    <div id="save-track-status" style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);min-height:12px;"></div>
+  </div>
+
+  <!-- Track Shape -->
+  <div class="param-section">
+    <div class="panel-title">Track Shape</div>
+    <div class="param-row" style="grid-template-columns:110px 1fr 70px 28px;">
+      <span class="param-label">Lap Length</span>
+      <select id="lap-length-select" style="grid-column:2/4;padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-family:var(--font-mono);font-size:11px;outline:none;cursor:pointer;">
+        <option value="166">166 m</option>
+        <option value="200">200 m</option>
+        <option value="250" selected>250 m</option>
+        <option value="333">333 m</option>
+        <option value="400">400 m</option>
+      </select>
+      <span class="param-unit">m</span>
+    </div>
+    <div id="shape-params"></div>
+  </div>
+
+  <!-- Line Positions -->
+  <div class="param-section">
+    <div class="panel-title">Line Positions</div>
+    <div id="line-params"></div>
+  </div>
+
+  <!-- Sprint / Positioning -->
+  <div class="param-section">
+    <div class="panel-title">Sprint Positioning</div>
+    <div id="sprint-params"></div>
+  </div>
+
+  <!-- Banking (display) -->
+  <div class="param-section">
+    <div class="panel-title">Banking</div>
+    <div id="banking-params"></div>
+  </div>
+
+  <!-- Computed -->
+  <div class="param-section">
+    <div class="panel-title">Computed</div>
+    <div class="computed-grid" id="computed"></div>
+  </div>
+
+  <!-- Trajectory (y_m) Editor -->
+  <div class="param-section" id="trajectory-section">
+    <div class="panel-title">Trajectory (y_m)</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+      <button class="preset-btn" id="traj-reset-bromont" style="flex:1;font-size:10px;">Default (Bromont)</button>
+      <button class="preset-btn" id="traj-reset-scale" style="flex:1;font-size:10px;">Scale</button>
+    </div>
+    <div id="trajectory-grid" style="max-height:360px;overflow-y:auto;font-family:var(--font-mono);font-size:10px;"></div>
+  </div>
+
+  <div class="section-divider"></div>
+
+</div>
+
+<!-- SVG Viewport -->
+<div id="viewport">
+  <svg id="trackSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="info-overlay"></div>
+</div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// PRESETS
+// ════════════════════════════════════════════════════════════════
+// Standard UCI line positions (m from black line)
+const STD_LINES = { BLACK_LINE_POSITION: 0.2, RED_LINE_POSITION: 0.9, BLUE_LINE_POSITION: 3.0 };
+
+// Helper: derive semi-axes from straight length for 250m lap
+function _preset(L, bankT, bankS, W, alt, finish, lapLen) {
+  const lap = lapLen || 250;
+  const r = (lap - 2 * L) / (2 * Math.PI);
+  return {
+    LAP_LENGTH: lap, L_BLACK: L, a_BLACK: r, b_BLACK: r, W, ...STD_LINES,
+    FINISH_LINE_DISTANCE: finish || L * 0.7, SPRINT_DISTANCE: 200,
+    banking_turn_deg: bankT, banking_straight_deg: bankS,
+  };
+}
+
+const PRESETS = {
+  // ── Australia ────────────────────────────────────────
+  'Adelaide':        _preset(41, 43.0, 13, 7.0,  56),  // Super-Drome, Gepps Cross
+  'Brisbane':        _preset(41, 43.9, 13, 7.0,  30),  // Anna Meares Velodrome, Chandler
+
+  // ── Canada ───────────────────────────────────────────
+  'Bromont':         _preset(59, 42.0, 12, 7.5, 200, 42),  // ex-Atlanta Olympic track
+  'Milton':          _preset(41, 42.0, 13, 7.0, 176, 33),   // Mattamy National Cycling Centre
+
+  // ── Colombia ─────────────────────────────────────────
+  'Cali':            _preset(45, 46.0, 11, 7.0, 997),  // Alcides Nieto Patiño (high altitude!)
+
+  // ── Denmark ──────────────────────────────────────────
+  'Ballerup':        _preset(40, 45.0, 14, 8.15, 30),  // Ballerup Super Arena
+
+  // ── France ───────────────────────────────────────────
+  'Roubaix':         _preset(42, 44.3, 13, 7.0,  25),  // Vélodrome Jean Stablinski
+  'Saint-Quentin':   _preset(53, 43.0, 13, 8.0, 160),  // Vélodrome National (23m radius)
+
+  // ── Germany ──────────────────────────────────────────
+  'Berlin':          _preset(38, 45.0, 13, 7.5,  35),  // Velodrom Berlin
+
+  // ── Hong Kong ────────────────────────────────────────
+  'Hong Kong':       _preset(43, 41.9, 12.4, 7.0, 10),  // Tseung Kwan O
+
+  // ── Italy ────────────────────────────────────────────
+  'Montichiari':     _preset(42, 44.0, 13, 7.0, 100),  // Velodrome Fassa Bortolo
+
+  // ── Japan ────────────────────────────────────────────
+  'Izu':             _preset(38, 45.0, 13, 7.5,  30),  // Izu Olympic Velodrome
+
+  // ── Netherlands ──────────────────────────────────────
+  'Apeldoorn':       _preset(40, 44.0, 13, 7.0,  15),  // Omnisport Apeldoorn
+
+  // ── New Zealand ──────────────────────────────────────
+  'Cambridge':       _preset(41, 43.5, 13, 7.0,  50),  // Avantidrome
+
+  // ── Poland ───────────────────────────────────────────
+  'Pruszków':        _preset(41, 43.0, 13, 7.0, 100),  // BGŻ Arena
+
+  // ── Switzerland ──────────────────────────────────────
+  'Grenchen':        _preset(36, 46.0, 13, 7.0, 450),  // Tissot Velodrome (high altitude)
+
+  // ── Turkey ───────────────────────────────────────────
+  'Konya':           _preset(38, 45.5, 12.7, 8.0, 1020),  // Konya Velodrome (highest altitude)
+
+  // ── United Kingdom ───────────────────────────────────
+  'Derby':           _preset(41, 42.0, 13, 7.0,  50),  // Derby Arena
+  'Glasgow':         _preset(38, 44.0, 13, 7.0,  40),  // Sir Chris Hoy Velodrome
+  'London':          _preset(41, 42.0, 13, 7.0,  10),  // Lee Valley VeloPark (Olympic)
+  'Manchester':      _preset(41, 42.0, 13, 7.0,  40),  // National Cycling Centre
+
+  // ── USA ──────────────────────────────────────────────
+  'Hellyer':         _preset(50.57, 33, 11, 7.0, 25, 0, 335.75),  // Hellyer Park, San Jose — 335.75m outdoor, compound curve (R1=42.67m/45° + R2=32.00m/90°), avg radius ≈37.34m
+  'Los Angeles':     _preset(40, 45.5, 13, 7.0,   5),  // VELO Sports Center, Carson
+
+  // ── Wales ────────────────────────────────────────────
+  'Newport':         _preset(42, 42.0, 13, 7.0,  15),  // Geraint Thomas National Velodrome
+};
+
+// Parameter definitions: [key, label, min, max, step, unit, section]
+const PARAM_DEFS = [
+  ['L_BLACK',             'Straight',        20,   120, 0.5,  'm',   'shape'],
+  ['a_BLACK',             'Turn Radius X',   10,    60, 0.1,  'm',   'shape'],
+  ['b_BLACK',             'Turn Radius Y',   10,    60, 0.1,  'm',   'shape'],
+  ['W',                   'Width',            4,    12, 0.1,  'm',   'shape'],
+  ['BLACK_LINE_POSITION', 'Black Line',     0.3,   1.5, 0.05, 'm',   'line'],
+  ['RED_LINE_POSITION',   'Red Line',       1.0,   4.0, 0.05, 'm',   'line'],
+  ['BLUE_LINE_POSITION',  'Blue Line',      2.0,   5.0, 0.05, 'm',   'line'],
+  ['FINISH_LINE_DISTANCE','Finish (on straight)', 0, 120, 0.5,  'm',   'sprint'],
+  ['SPRINT_DISTANCE',     'Sprint Dist',     50,   400, 1,    'm',   'sprint'],
+  ['banking_turn_deg',    'Turn Banking',    15,    55, 0.5,  'deg', 'banking'],
+  ['banking_straight_deg','Straight Banking',  3,    25, 0.5,  'deg', 'banking'],
+];
+
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let config = { ...PRESETS.Bromont };
+let geometry = null;
+let activePreset = 'Bromont';
+
+// ════════════════════════════════════════════════════════════════
+// GEOMETRY ENGINE
+// ════════════════════════════════════════════════════════════════
+
+function linspace(start, end, n) {
+  const arr = new Float64Array(n);
+  if (n === 1) { arr[0] = start; return arr; }
+  const step = (end - start) / (n - 1);
+  for (let i = 0; i < n; i++) arr[i] = start + i * step;
+  return arr;
+}
+
+function ramanujanPerimeter(a, b) {
+  if (a + b === 0) return 0;
+  const h = ((a - b) / (a + b)) ** 2;
+  return Math.PI * (a + b) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h)));
+}
+
+function computeTrackGeometry(cfg) {
+  let L = cfg.L_BLACK;
+  let a = cfg.a_BLACK;
+  let b = cfg.b_BLACK;
+  const W = cfg.W;
+  const BLP = cfg.BLACK_LINE_POSITION;
+  const lapLength = cfg.LAP_LENGTH;
+
+  // Raw perimeter
+  const rawPerimeter = 2 * L + ramanujanPerimeter(a, b);
+
+  // Optional scaling
+  let scaleFactor = 1.0;
+  if (lapLength > 0) {
+    scaleFactor = lapLength / rawPerimeter;
+    L *= scaleFactor;
+    a *= scaleFactor;
+    b *= scaleFactor;
+  }
+  const actualPerimeter = 2 * L + ramanujanPerimeter(a, b);
+
+  const N_STRAIGHT = 200;
+  const N_CURVE = 300;
+  const TOTAL = 2 * N_STRAIGHT + 2 * N_CURVE; // 1000
+
+  // Allocate
+  const x_black = new Float64Array(TOTAL);
+  const y_black = new Float64Array(TOTAL);
+
+  // Segment 1: Bottom straight (indices 0..199)
+  const s1x = linspace(0, L, N_STRAIGHT);
+  const s1y = new Float64Array(N_STRAIGHT).fill(-b);
+  x_black.set(s1x, 0);
+  y_black.set(s1y, 0);
+
+  // Segment 2: Right curve (indices 200..499)
+  const theta2 = linspace(-Math.PI / 2, Math.PI / 2, N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    x_black[N_STRAIGHT + i] = L + a * Math.cos(theta2[i]);
+    y_black[N_STRAIGHT + i] = b * Math.sin(theta2[i]);
+  }
+
+  // Segment 3: Top straight (indices 500..699)
+  const s3x = linspace(L, 0, N_STRAIGHT);
+  const s3y = new Float64Array(N_STRAIGHT).fill(b);
+  x_black.set(s3x, N_STRAIGHT + N_CURVE);
+  y_black.set(s3y, N_STRAIGHT + N_CURVE);
+
+  // Segment 4: Left curve (indices 700..999)
+  const theta4 = linspace(Math.PI / 2, 3 * Math.PI / 2, N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    x_black[N_STRAIGHT + N_CURVE + N_STRAIGHT + i] = a * Math.cos(theta4[i]);
+    y_black[N_STRAIGHT + N_CURVE + N_STRAIGHT + i] = b * Math.sin(theta4[i]);
+  }
+
+  // Center about x=0
+  const cx = L / 2;
+  for (let i = 0; i < TOTAL; i++) x_black[i] -= cx;
+
+  // Normal vectors
+  const nx = new Float64Array(TOTAL);
+  const ny = new Float64Array(TOTAL);
+
+  // Seg 1: bottom straight -> normal (0, -1)
+  for (let i = 0; i < N_STRAIGHT; i++) { nx[i] = 0; ny[i] = -1; }
+
+  // Seg 2: right curve -> radial from right center
+  const rcx = L - cx; // right curve center x after centering = L/2
+  for (let i = N_STRAIGHT; i < N_STRAIGHT + N_CURVE; i++) {
+    const dx = x_black[i] - rcx;
+    const dy = y_black[i];
+    const norm = Math.sqrt(dx * dx + dy * dy);
+    nx[i] = norm > 0 ? dx / norm : 0;
+    ny[i] = norm > 0 ? dy / norm : 0;
+  }
+
+  // Seg 3: top straight -> normal (0, 1)
+  for (let i = N_STRAIGHT + N_CURVE; i < N_STRAIGHT + N_CURVE + N_STRAIGHT; i++) {
+    nx[i] = 0; ny[i] = 1;
+  }
+
+  // Seg 4: left curve -> radial from left center
+  const lcx = -cx; // left curve center x after centering = -L/2
+  for (let i = N_STRAIGHT + N_CURVE + N_STRAIGHT; i < TOTAL; i++) {
+    const dx = x_black[i] - lcx;
+    const dy = y_black[i];
+    const norm = Math.sqrt(dx * dx + dy * dy);
+    nx[i] = norm > 0 ? dx / norm : 0;
+    ny[i] = norm > 0 ? dy / norm : 0;
+  }
+
+  // Derived lines
+  const x_inner = new Float64Array(TOTAL);
+  const y_inner = new Float64Array(TOTAL);
+  const x_red = new Float64Array(TOTAL);
+  const y_red = new Float64Array(TOTAL);
+  const x_blue = new Float64Array(TOTAL);
+  const y_blue = new Float64Array(TOTAL);
+  const x_outer = new Float64Array(TOTAL);
+  const y_outer = new Float64Array(TOTAL);
+
+  for (let i = 0; i < TOTAL; i++) {
+    x_inner[i] = x_black[i] - nx[i] * BLP;
+    y_inner[i] = y_black[i] - ny[i] * BLP;
+    x_red[i]   = x_black[i] + nx[i] * cfg.RED_LINE_POSITION;
+    y_red[i]   = y_black[i] + ny[i] * cfg.RED_LINE_POSITION;
+    x_blue[i]  = x_black[i] + nx[i] * cfg.BLUE_LINE_POSITION;
+    y_blue[i]  = y_black[i] + ny[i] * cfg.BLUE_LINE_POSITION;
+    x_outer[i] = x_black[i] + nx[i] * W;
+    y_outer[i] = y_black[i] + ny[i] * W;
+  }
+
+  // Segment lengths
+  const halfCurve = ramanujanPerimeter(a, b) / 2;
+  const segLengths = [L, halfCurve, L, halfCurve];
+  const segNames = ['Bottom Straight', 'Right Curve', 'Top Straight', 'Left Curve'];
+  const segBounds = [0, N_STRAIGHT, N_STRAIGHT + N_CURVE, N_STRAIGHT + N_CURVE + N_STRAIGHT, TOTAL];
+
+  // Finish line positioning
+  const finishDist = Math.max(0, Math.min(L - 0.01, cfg.FINISH_LINE_DISTANCE));
+  const finishProportion = L > 0 ? finishDist / L : 0;
+  const finish_idx = Math.min(Math.floor(finishProportion * N_STRAIGHT), N_STRAIGHT - 1);
+
+  // Start line: SPRINT_DISTANCE meters back from finish
+  const pointsPerMeter = TOTAL / actualPerimeter;
+  const sprintPoints = Math.round(cfg.SPRINT_DISTANCE * pointsPerMeter);
+  const start_idx = ((finish_idx - sprintPoints) % TOTAL + TOTAL) % TOTAL;
+
+  // Pursuit lines: midpoints of straights
+  const bottomPursuitIdx = Math.floor(N_STRAIGHT / 2); // 100
+  const topPursuitIdx = N_STRAIGHT + N_CURVE + Math.floor(N_STRAIGHT / 2); // 600
+
+  // Segment name for an index
+  function segmentAt(idx) {
+    for (let s = 0; s < 4; s++) {
+      if (idx >= segBounds[s] && idx < segBounds[s + 1]) return segNames[s];
+    }
+    return segNames[3];
+  }
+
+  // Distance along track for an index
+  function distanceAt(idx) {
+    return (idx / (TOTAL - 1)) * actualPerimeter;
+  }
+
+  return {
+    x_black, y_black, nx, ny,
+    x_inner, y_inner, x_red, y_red, x_blue, y_blue, x_outer, y_outer,
+    finish_idx, start_idx,
+    bottomPursuitIdx, topPursuitIdx,
+    TOTAL, N_STRAIGHT, N_CURVE,
+    segLengths, segNames, segBounds,
+    L_actual: L, a_actual: a, b_actual: b,
+    rawPerimeter, actualPerimeter, scaleFactor,
+    segmentAt, distanceAt,
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+// SVG RENDERER
+// ════════════════════════════════════════════════════════════════
+
+function polylinePoints(xs, ys, step = 2) {
+  const pts = [];
+  for (let i = 0; i < xs.length; i += step) {
+    pts.push(xs[i].toFixed(3) + ',' + (-ys[i]).toFixed(3));
+  }
+  // always include last point
+  const last = xs.length - 1;
+  if ((last % step) !== 0) {
+    pts.push(xs[last].toFixed(3) + ',' + (-ys[last]).toFixed(3));
+  }
+  return pts.join(' ');
+}
+
+function closedPolygonPoints(xs1, ys1, xs2, ys2, step = 3) {
+  // forward along first line, backward along second line -> closed polygon
+  const pts = [];
+  for (let i = 0; i < xs1.length; i += step) {
+    pts.push(xs1[i].toFixed(3) + ',' + (-ys1[i]).toFixed(3));
+  }
+  for (let i = xs2.length - 1; i >= 0; i -= step) {
+    pts.push(xs2[i].toFixed(3) + ',' + (-ys2[i]).toFixed(3));
+  }
+  return pts.join(' ');
+}
+
+function renderTrack(g, svg) {
+  // Compute bounding box from outer edge with padding
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < g.TOTAL; i++) {
+    const ox = g.x_outer[i], oy = -g.y_outer[i];
+    const ix = g.x_inner[i], iy = -g.y_inner[i];
+    minX = Math.min(minX, ox, ix);
+    maxX = Math.max(maxX, ox, ix);
+    minY = Math.min(minY, oy, iy);
+    maxY = Math.max(maxY, oy, iy);
+  }
+  const pad = Math.max(maxX - minX, maxY - minY) * 0.08;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const vw = maxX - minX;
+  const vh = maxY - minY;
+  svg.setAttribute('viewBox', `${minX} ${minY} ${vw} ${vh}`);
+
+  const parts = [];
+
+  // 1. Track surface (black line to outer edge)
+  parts.push(`<polygon points="${closedPolygonPoints(g.x_black, g.y_black, g.x_outer, g.y_outer)}" fill="${'#ffe4c4'}" opacity="0.85" stroke="none"/>`);
+
+  // 2. Cote d'Azur (inner edge to black line)
+  parts.push(`<polygon points="${closedPolygonPoints(g.x_inner, g.y_inner, g.x_black, g.y_black)}" fill="${'#add8e6'}" opacity="0.7" stroke="none"/>`);
+
+  // 3. Infield fill
+  parts.push(`<polygon points="${polylinePoints(g.x_inner, g.y_inner, 3)}" fill="#add8e6" opacity="0.15" stroke="none"/>`);
+
+  // 4. Inner edge (dashed blue)
+  parts.push(`<polyline points="${polylinePoints(g.x_inner, g.y_inner, 2)}" fill="none" stroke="#0055cc" stroke-width="${g.L_actual * 0.004}" stroke-dasharray="${g.L_actual * 0.01},${g.L_actual * 0.01}" opacity="0.6"/>`);
+
+  // 5. Black line
+  parts.push(`<polyline points="${polylinePoints(g.x_black, g.y_black, 2)}" fill="none" stroke="#000000" stroke-width="${g.L_actual * 0.006}" stroke-linecap="round" stroke-linejoin="round"/>`);
+
+  // 6. Red line
+  parts.push(`<polyline points="${polylinePoints(g.x_red, g.y_red, 2)}" fill="none" stroke="#cc0000" stroke-width="${g.L_actual * 0.005}" opacity="0.8"/>`);
+
+  // 7. Blue line
+  parts.push(`<polyline points="${polylinePoints(g.x_blue, g.y_blue, 2)}" fill="none" stroke="#0044cc" stroke-width="${g.L_actual * 0.005}" opacity="0.8"/>`);
+
+  // 8. Outer edge
+  parts.push(`<polyline points="${polylinePoints(g.x_outer, g.y_outer, 2)}" fill="none" stroke="#000000" stroke-width="${g.L_actual * 0.006}" stroke-linecap="round" stroke-linejoin="round"/>`);
+
+  const lw = g.L_actual * 0.008; // line width for cross-track lines
+  const mr = g.L_actual * 0.02;  // marker radius
+
+  // Helper: cross-track line from inner to outer at index
+  function crossLine(idx, color, dash, width) {
+    const BLP = config.BLACK_LINE_POSITION;
+    const W = config.W;
+    const ix = g.x_black[idx] - g.nx[idx] * BLP;
+    const iy = -(g.y_black[idx] - g.ny[idx] * BLP);
+    const ox = g.x_black[idx] + g.nx[idx] * W;
+    const oy = -(g.y_black[idx] + g.ny[idx] * W);
+    const dashAttr = dash ? ` stroke-dasharray="${g.L_actual * 0.015},${g.L_actual * 0.01}"` : '';
+    return `<line x1="${ix.toFixed(3)}" y1="${iy.toFixed(3)}" x2="${ox.toFixed(3)}" y2="${oy.toFixed(3)}" stroke="${color}" stroke-width="${width || lw}"${dashAttr} stroke-linecap="round"/>`;
+  }
+
+  // 9. Pursuit lines (red, full width)
+  parts.push(crossLine(g.bottomPursuitIdx, '#cc0000', false, lw * 1.2));
+  parts.push(crossLine(g.topPursuitIdx, '#cc0000', false, lw * 1.2));
+
+  // 10. Finish line (solid black, thick)
+  parts.push(crossLine(g.finish_idx, '#000000', false, lw * 1.5));
+
+  // 11. Start line (dashed black)
+  parts.push(crossLine(g.start_idx, '#000000', true, lw * 1.2));
+
+  // 12. Start marker (blue circle)
+  parts.push(`<circle cx="${g.x_black[g.start_idx].toFixed(3)}" cy="${(-g.y_black[g.start_idx]).toFixed(3)}" r="${mr}" fill="#3b82f6" stroke="#fff" stroke-width="${mr * 0.3}"/>`);
+
+  // 13. Finish marker (red circle)
+  parts.push(`<circle cx="${g.x_black[g.finish_idx].toFixed(3)}" cy="${(-g.y_black[g.finish_idx]).toFixed(3)}" r="${mr}" fill="#ef4444" stroke="#fff" stroke-width="${mr * 0.3}"/>`);
+
+  // 14. Pursuit markers (small red circles)
+  parts.push(`<circle cx="${g.x_black[g.bottomPursuitIdx].toFixed(3)}" cy="${(-g.y_black[g.bottomPursuitIdx]).toFixed(3)}" r="${mr * 0.5}" fill="#cc0000" stroke="#fff" stroke-width="${mr * 0.2}"/>`);
+  parts.push(`<circle cx="${g.x_black[g.topPursuitIdx].toFixed(3)}" cy="${(-g.y_black[g.topPursuitIdx]).toFixed(3)}" r="${mr * 0.5}" fill="#cc0000" stroke="#fff" stroke-width="${mr * 0.2}"/>`);
+
+  // 15. Segment labels
+  const fontSize = g.L_actual * 0.04;
+  const labelColor = '#555';
+  // Bottom straight label
+  const bsm = Math.floor(g.N_STRAIGHT / 2);
+  parts.push(`<text x="${g.x_black[bsm].toFixed(3)}" y="${(-g.y_black[bsm] - config.W - 2).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="middle" font-family="Outfit, sans-serif">Home Straight</text>`);
+  // Top straight label
+  const tsm = g.N_STRAIGHT + g.N_CURVE + Math.floor(g.N_STRAIGHT / 2);
+  parts.push(`<text x="${g.x_black[tsm].toFixed(3)}" y="${(-g.y_black[tsm] + config.W + fontSize + 2).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="middle" font-family="Outfit, sans-serif">Back Straight</text>`);
+  // Right curve
+  const rcm = g.N_STRAIGHT + Math.floor(g.N_CURVE / 2);
+  parts.push(`<text x="${(g.x_black[rcm] + config.W + 3).toFixed(3)}" y="${(-g.y_black[rcm] + fontSize * 0.3).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="start" font-family="Outfit, sans-serif">Turn 1-2</text>`);
+  // Left curve
+  const lcc = g.N_STRAIGHT + g.N_CURVE + g.N_STRAIGHT + Math.floor(g.N_CURVE / 2);
+  parts.push(`<text x="${(g.x_black[lcc] - config.W - 3).toFixed(3)}" y="${(-g.y_black[lcc] + fontSize * 0.3).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="end" font-family="Outfit, sans-serif">Turn 3-4</text>`);
+
+  // Start/Finish labels next to markers
+  const slx = g.x_black[g.start_idx];
+  const sly = -g.y_black[g.start_idx];
+  parts.push(`<text x="${(slx).toFixed(3)}" y="${(sly - mr * 1.5).toFixed(3)}" font-size="${fontSize * 0.75}" fill="#3b82f6" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="600">START</text>`);
+  const flx = g.x_black[g.finish_idx];
+  const fly = -g.y_black[g.finish_idx];
+  parts.push(`<text x="${(flx).toFixed(3)}" y="${(fly - mr * 1.5).toFixed(3)}" font-size="${fontSize * 0.75}" fill="#ef4444" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="600">FINISH</text>`);
+
+  // 16. Trajectory line (rider path from y_m data)
+  // Color-coded by phase:
+  //   Lap 0 (early cruise):  gray     ~0–250m
+  //   Lap 1 (buildup):       amber    ~250–500m
+  //   Lap 2 (acceleration):  green    ~500–695m
+  //   Timed (sprint):        red      695–895m
+  if (typeof trajectory !== 'undefined' && trajectory.length > 0) {
+    const ppm = g.TOTAL / g.actualPerimeter; // points per meter
+    const L = config.L_BLACK || 59;
+    const R = (g.actualPerimeter - 2 * L) / (2 * Math.PI);
+    const arcLen = Math.PI * R;
+    const sOffset = L + arcLen + 0.5 * L;
+    const lapLen = g.actualPerimeter;
+
+    // Compute all screen positions
+    const trajScreen = [];
+    for (let ti = 0; ti < trajectory.length; ti++) {
+      const [s_eff, y_m] = trajectory[ti];
+      const s_global = s_eff + sOffset;
+      const s_on_lap = ((s_global % lapLen) + lapLen) % lapLen;
+      let idx = Math.round(s_on_lap * ppm);
+      idx = Math.max(0, Math.min(g.TOTAL - 1, idx));
+      const clampedY = Math.max(0, Math.min(config.W, y_m));
+      const px = g.x_black[idx] + g.nx[idx] * clampedY;
+      const py = -(g.y_black[idx] + g.ny[idx] * clampedY);
+      trajScreen.push({ s: s_eff, x: px, y: py });
+    }
+
+    // Phase definitions — one phase per lap, working backward from sprint.
+    // Sprint is always 695–895m. Before that, split into full laps.
+    // Partial laps (<50% of a lap) merge into the next phase.
+    const sprintStart = 695;
+    const lapBounds = [];
+    let b = sprintStart;
+    while (b > 0) { b -= lapLen; lapBounds.unshift(Math.max(0, b)); }
+    lapBounds.push(sprintStart);
+    // Merge tiny first segment into second if < half a lap
+    if (lapBounds.length >= 3 && (lapBounds[1] - lapBounds[0]) < lapLen * 0.5) {
+      lapBounds.shift();
+    }
+
+    // Name/color from the end (sprint-adjacent gets most urgent name)
+    const preSprintNames =  ['Cruise', 'Buildup', 'Accel', 'Drive'];
+    const preSprintColors = ['#6b7280', '#f59e0b', '#22c55e', '#38bdf8'];
+    const nPre = lapBounds.length - 1; // number of pre-sprint phases
+    const phases = [];
+    for (let i = 0; i < nPre; i++) {
+      const fromEnd = nPre - 1 - i; // 0 = closest to sprint
+      const nameIdx = preSprintNames.length - 1 - fromEnd;
+      phases.push({
+        name: preSprintNames[Math.max(0, nameIdx)],
+        color: preSprintColors[Math.max(0, nameIdx)],
+        from: lapBounds[i],
+        to: lapBounds[i + 1],
+      });
+    }
+    phases.push({ name: 'Sprint', color: '#ef4444', from: sprintStart, to: 9999 });
+    const activePhases = phases;
+
+    const lw = g.L_actual * 0.007;
+    const dotR = g.L_actual * 0.007;
+
+    activePhases.forEach(phase => {
+      // Collect consecutive points within this phase
+      const pts = [];
+      for (let i = 0; i < trajScreen.length; i++) {
+        const s = trajScreen[i].s;
+        if (s >= phase.from && s < phase.to) {
+          pts.push(trajScreen[i]);
+        }
+      }
+      // Also include the first point of the next phase for continuity
+      if (pts.length > 0) {
+        const lastS = pts[pts.length - 1].s;
+        for (let i = 0; i < trajScreen.length; i++) {
+          if (trajScreen[i].s > lastS) {
+            pts.push(trajScreen[i]);
+            break;
+          }
+        }
+      }
+
+      if (pts.length > 1) {
+        const polyPts = pts.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(' ');
+        parts.push(`<polyline points="${polyPts}" fill="none" stroke="${phase.color}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`);
+      }
+
+      // Dots
+      pts.forEach((p, i) => {
+        if (i < pts.length - 1) { // skip the continuity point
+          parts.push(`<circle cx="${p.x.toFixed(3)}" cy="${p.y.toFixed(3)}" r="${dotR}" fill="${phase.color}" opacity="0.6"/>`);
+        }
+      });
+    });
+
+    // Legend (top-left of viewport)
+    const legendX = minX + pad * 0.5;
+    const legendY = minY + pad * 0.5;
+    const legH = (maxY - minY) * 0.025;
+    const legGap = legH * 1.4;
+    const legDotR = legH * 0.35;
+    const legFontSize = legH * 0.9;
+
+    parts.push(`<rect x="${legendX - legH * 0.3}" y="${legendY - legH * 0.3}" width="${legH * 12}" height="${legGap * activePhases.length + legH * 0.6}" rx="${legH * 0.3}" fill="rgba(14,20,32,0.85)" stroke="${'#1E2A3A'}" stroke-width="0.5"/>`);
+    activePhases.forEach((phase, i) => {
+      const ly = legendY + i * legGap + legH * 0.5;
+      parts.push(`<circle cx="${legendX + legDotR}" cy="${ly}" r="${legDotR}" fill="${phase.color}"/>`);
+      parts.push(`<text x="${legendX + legDotR * 3}" y="${ly + legFontSize * 0.35}" font-size="${legFontSize}" fill="#E8ECF0" font-family="Outfit, sans-serif">${phase.name} (${Math.round(phase.from)}–${Math.min(895, Math.round(phase.to))}m)</text>`);
+    });
+  }
+
+  svg.innerHTML = parts.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════
+// UI CONTROLS
+// ════════════════════════════════════════════════════════════════
+
+const sliders = {};
+const inputs = {};
+
+function buildControls() {
+  const sections = {
+    shape: document.getElementById('shape-params'),
+    line: document.getElementById('line-params'),
+    sprint: document.getElementById('sprint-params'),
+    banking: document.getElementById('banking-params'),
+  };
+
+  PARAM_DEFS.forEach(([key, label, min, max, step, unit, section]) => {
+    const row = document.createElement('div');
+    row.className = 'param-row';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'param-label';
+    lbl.textContent = label;
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'param-slider';
+    slider.min = min;
+    slider.max = max;
+    slider.step = step;
+    slider.value = config[key];
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.className = 'param-input';
+    inp.min = min;
+    inp.max = max;
+    inp.step = step;
+    inp.value = config[key];
+
+    const unitEl = document.createElement('span');
+    unitEl.className = 'param-unit';
+    unitEl.textContent = unit;
+
+    row.append(lbl, slider, inp, unitEl);
+    sections[section].appendChild(row);
+
+    sliders[key] = slider;
+    inputs[key] = inp;
+
+    slider.addEventListener('input', () => {
+      const v = parseFloat(slider.value);
+      config[key] = v;
+      inp.value = v;
+      activePreset = null;
+      updatePresetButtons();
+      scheduleUpdate();
+    });
+
+    inp.addEventListener('input', () => {
+      const v = parseFloat(inp.value);
+      if (!isNaN(v)) {
+        config[key] = v;
+        slider.value = v;
+        activePreset = null;
+        updatePresetButtons();
+        scheduleUpdate();
+      }
+    });
+  });
+
+  // Preset dropdown — grouped by country
+  const presetSelect = document.getElementById('preset-select');
+
+  // Country mapping for grouping
+  const TRACK_COUNTRY = {
+    'Adelaide': 'Australia', 'Brisbane': 'Australia',
+    'Bromont': 'Canada', 'Milton': 'Canada',
+    'Cali': 'Colombia',
+    'Ballerup': 'Denmark',
+    'Roubaix': 'France', 'Saint-Quentin': 'France',
+    'Berlin': 'Germany',
+    'Hong Kong': 'Hong Kong',
+    'Montichiari': 'Italy',
+    'Izu': 'Japan',
+    'Apeldoorn': 'Netherlands',
+    'Cambridge': 'New Zealand',
+    'Pruszków': 'Poland',
+    'Grenchen': 'Switzerland',
+    'Konya': 'Turkey',
+    'Derby': 'United Kingdom', 'Glasgow': 'United Kingdom',
+    'London': 'United Kingdom', 'Manchester': 'United Kingdom',
+    'Hellyer': 'USA', 'Los Angeles': 'USA',
+    'Newport': 'Wales',
+  };
+
+  window.populatePresetDropdown = populatePresetDropdown;
+  function populatePresetDropdown() {
+    presetSelect.innerHTML = '';
+
+    // "New Track" option at top
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '— New Track —';
+    newOpt.style.color = '#22C55E';
+    if (activePreset === '__new__') newOpt.selected = true;
+    presetSelect.appendChild(newOpt);
+
+    // Group tracks by country
+    const groups = {};
+    Object.keys(PRESETS).forEach(name => {
+      const country = TRACK_COUNTRY[name] || 'Other';
+      if (!groups[country]) groups[country] = [];
+      groups[country].push(name);
+    });
+    // Sort countries alphabetically
+    Object.keys(groups).sort().forEach(country => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = country;
+      groups[country].sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === activePreset) opt.selected = true;
+        optgroup.appendChild(opt);
+      });
+      presetSelect.appendChild(optgroup);
+    });
+  }
+  populatePresetDropdown();
+
+  presetSelect.addEventListener('change', () => {
+    if (presetSelect.value === '__new__') {
+      document.getElementById('new-track-btn').click();
+    } else {
+      loadPreset(presetSelect.value);
+    }
+  });
+
+  // Load custom tracks from V2 server (if running)
+  (async () => {
+    try {
+      const res = await fetch('http://localhost:5200/api/tracks', { signal: AbortSignal.timeout(1000) });
+      if (!res.ok) return;
+      const tracks = await res.json();
+      const customNames = Object.keys(tracks).filter(k => !PRESETS[k]);
+      if (customNames.length === 0) return;
+
+      customNames.forEach(key => {
+        const t = tracks[key];
+        PRESETS[key] = _preset(
+          t.straight_length_m || 41, t.banking_turn_deg || 42,
+          t.banking_straight_deg || 13, t.width_m || 7.0, t.altitude_m || 0,
+          null, t.length_m || 250
+        );
+        TRACK_COUNTRY[key] = 'Custom';
+      });
+      populatePresetDropdown();
+    } catch (e) { /* V2 server not running — that's fine */ }
+  })();
+
+  // Load saved track configs (geometry + trajectory) from disk
+  (async () => {
+    try {
+      const res = await fetch('http://localhost:5200/api/tracks/configs', { signal: AbortSignal.timeout(1000) });
+      if (!res.ok) return;
+      const configs = await res.json();
+      const keys = Object.keys(configs);
+      if (keys.length === 0) return;
+
+      // Store configs for loading trajectory when preset is selected
+      window._savedTrackConfigs = configs;
+
+      keys.forEach(key => {
+        const c = configs[key];
+        const g = c.geometry || {};
+        // Saved config always overrides built-in preset geometry
+        PRESETS[key] = _preset(
+          g.straight_m || 41, g.banking_turn_deg || 42,
+          g.banking_straight_deg || 13, g.width_m || 7.0, g.altitude_m || 0,
+          g.finish_line_dist_m || null, g.lap_m || 250
+        );
+        if (!TRACK_COUNTRY[key]) TRACK_COUNTRY[key] = 'Saved';
+      });
+      populatePresetDropdown();
+    } catch (e) { /* V2 server not running */ }
+  })();
+
+}
+
+function loadPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  Object.assign(config, p);
+  activePreset = name;
+  syncControls();
+  updatePresetButtons();
+
+  // Load saved trajectory if available, otherwise scale from Bromont
+  const saved = window._savedTrackConfigs && window._savedTrackConfigs[name];
+  if (saved && saved.trajectory && saved.trajectory.length > 0) {
+    trajectory = saved.trajectory.map(pt => [pt.s_m, pt.y_m]);
+  } else {
+    resetTrajectoryToBromont();
+  }
+
+  // Auto-fill save name and altitude
+  const nameInput = document.getElementById('save-track-name');
+  if (nameInput) nameInput.value = name;
+  const altInput = document.getElementById('save-track-altitude');
+  if (altInput && saved && saved.geometry) altInput.value = saved.geometry.altitude_m || 0;
+
+  scheduleUpdate();
+}
+
+function syncControls() {
+  PARAM_DEFS.forEach(([key]) => {
+    if (sliders[key]) sliders[key].value = config[key];
+    if (inputs[key]) inputs[key].value = config[key];
+  });
+  // Sync lap length dropdown
+  const lapSel = document.getElementById('lap-length-select');
+  if (lapSel) lapSel.value = config.LAP_LENGTH || 250;
+}
+
+function updatePresetButtons() {
+  const sel = document.getElementById('preset-select');
+  if (activePreset && sel) sel.value = activePreset;
+}
+
+// ════════════════════════════════════════════════════════════════
+// COMPUTED VALUES
+// ════════════════════════════════════════════════════════════════
+
+function updateComputed(g) {
+  const el = document.getElementById('computed');
+  const items = [
+    ['Raw Perim.', g.rawPerimeter.toFixed(2) + ' m'],
+    ['Actual Perim.', g.actualPerimeter.toFixed(2) + ' m'],
+    ['Scale Factor', g.scaleFactor === 1 ? 'none' : g.scaleFactor.toFixed(6)],
+    ['L (adj)', g.L_actual.toFixed(3) + ' m'],
+    ['a (adj)', g.a_actual.toFixed(3) + ' m'],
+    ['b (adj)', g.b_actual.toFixed(3) + ' m'],
+    ['Bottom Str.', g.segLengths[0].toFixed(2) + ' m'],
+    ['Right Curve', g.segLengths[1].toFixed(2) + ' m'],
+    ['Top Str.', g.segLengths[2].toFixed(2) + ' m'],
+    ['Left Curve', g.segLengths[3].toFixed(2) + ' m'],
+    ['Finish Seg.', g.segmentAt(g.finish_idx)],
+    ['Start Seg.', g.segmentAt(g.start_idx)],
+  ];
+  el.innerHTML = items.map(([l, v]) =>
+    `<div class="computed-item"><span class="computed-label">${l}</span><span class="computed-value">${v}</span></div>`
+  ).join('');
+
+  // Update finish slider max to match actual straight length, and clamp current value
+  if (sliders.FINISH_LINE_DISTANCE) {
+    const maxFinish = parseFloat(g.L_actual.toFixed(1));
+    sliders.FINISH_LINE_DISTANCE.max = maxFinish;
+    inputs.FINISH_LINE_DISTANCE.max = maxFinish;
+    if (config.FINISH_LINE_DISTANCE > maxFinish) {
+      config.FINISH_LINE_DISTANCE = maxFinish;
+      sliders.FINISH_LINE_DISTANCE.value = maxFinish;
+      inputs.FINISH_LINE_DISTANCE.value = maxFinish;
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// INFO OVERLAY
+// ════════════════════════════════════════════════════════════════
+
+function updateInfoOverlay(g) {
+  const el = document.getElementById('info-overlay');
+  const startDist = g.distanceAt(g.start_idx);
+  const finishDist = g.distanceAt(g.finish_idx);
+  const sprintActual = ((finishDist - startDist + g.actualPerimeter) % g.actualPerimeter);
+  el.innerHTML = [
+    `Perimeter: <span class="val">${g.actualPerimeter.toFixed(2)} m</span>`,
+    `Start idx: <span class="val">${g.start_idx}</span> (${g.segmentAt(g.start_idx)})`,
+    `Finish idx: <span class="val">${g.finish_idx}</span> (${g.segmentAt(g.finish_idx)})`,
+    `Sprint: <span class="val">${sprintActual.toFixed(2)} m</span>`,
+  ].join('<br>');
+}
+
+// ════════════════════════════════════════════════════════════════
+// UPDATE LOOP
+// ════════════════════════════════════════════════════════════════
+
+let updatePending = false;
+
+function scheduleUpdate() {
+  if (!updatePending) {
+    updatePending = true;
+    requestAnimationFrame(doUpdate);
+  }
+}
+
+function doUpdate() {
+  updatePending = false;
+  geometry = computeTrackGeometry(config);
+  renderTrack(geometry, document.getElementById('trackSvg'));
+  updateComputed(geometry);
+  updateInfoOverlay(geometry);
+  clampTrajectoryToWidth();
+  renderTrajectoryGrid();
+}
+
+// ════════════════════════════════════════════════════════════════
+// TRAJECTORY (y_m) EDITOR
+// ════════════════════════════════════════════════════════════════
+
+// Bromont default trajectory (reference)
+const BROMONT_TRAJECTORY = [
+  [0,2.5],[10,2.5],[20,2.5],[30,2.5],[40,2.5],[50,2.5],[60,2.5],
+  [70,2.93],[80,3.36],[90,3.79],[100,4.64],[110,5.92],[120,7.2],
+  [130,7.5],[140,7.5],[150,7.25],[160,6.5],[170,5.75],[180,4.75],
+  [190,5.13],[200,5.88],[210,5.39],[220,5.59],[230,5.77],[240,7.5],
+  [250,7.13],[260,7.5],[270,7.5],[280,7.18],[290,6.78],[300,7.02],
+  [310,6.70],[320,6.71],[330,6.95],[340,6.78],[350,6.50],[360,7.5],
+  [370,7.5],[380,7.5],[390,7.5],[400,7.5],[410,7.5],[420,7.5],
+  [430,7.5],[440,7.5],[450,7.5],[460,7.5],[470,7.5],[480,7.5],
+  [490,7.5],[500,7.5],[510,7.5],[520,7.5],[530,7.5],[540,7.5],
+  [550,7.5],[560,7.5],[570,7.5],[580,7.5],[590,7.5],[600,7.5],
+  [610,7.5],[620,7.5],[630,7.0],[640,6.5],[650,6.0],[660,5.5],
+  [670,5.0],[680,4.02],[690,1.25],[695,0.25],[700,0.15],[710,0.2],
+  [720,0.7],[730,0.0],[740,0.0],[750,0.05],[760,0.0],[770,0.2],
+  [780,0.15],[790,0.6],[800,0.6],[810,0.2],[820,0.5],[830,0.7],
+  [840,0.0],[850,0.0],[860,0.0],[870,0.0],[880,0.0],[890,0.0],[895,0.0],
+];
+const BROMONT_WIDTH = 7.5;
+const RED_LINE = 0.9;
+
+// Current trajectory state: array of [s_m, y_m]
+let trajectory = BROMONT_TRAJECTORY.map(([s, y]) => [s, y]);
+
+function getTrajectoryDistances() {
+  // Standard 10m grid + 695m marker
+  const dists = [];
+  for (let s = 0; s <= 690; s += 10) dists.push(s);
+  dists.push(695);
+  for (let s = 700; s <= 890; s += 10) dists.push(s);
+  dists.push(895);
+  return dists;
+}
+
+function generateF200Trajectory() {
+  // Generate a standard flying 200 trajectory for the current track geometry.
+  // Pattern: cruise low (lap 0) → climb to rail (lap 1) → hold rail (lap 2) →
+  //          dive to black line arriving at 200m start (s=695) → sprint on black.
+  //
+  // Key distances are computed from the track's section boundaries so the dive
+  // happens through the correct bends for THIS track.
+  const W = config.W;
+  const dists = getTrajectoryDistances();
+  const cruiseY = 2.5;      // Low cruise height (near blue line)
+  const railY = W;           // Rail = full width
+  const blackY = 0.0;        // Black line
+
+  // Phase boundaries (black-line distance)
+  const climbStart = 60;     // Start climbing ~60m in
+  const climbEnd = 140;      // Reach rail by ~140m
+  const diveStart = 620;     // Begin dive from rail
+  const diveEnd = 695;       // Arrive at black line for 200m start
+
+  trajectory = dists.map(s => {
+    if (s <= climbStart) {
+      // Phase 1: Cruise low
+      return [s, cruiseY];
+    } else if (s <= climbEnd) {
+      // Phase 2: Climb from cruise to rail
+      const f = (s - climbStart) / (climbEnd - climbStart);
+      // Smooth ease-in-out
+      const t = f * f * (3 - 2 * f);
+      return [s, cruiseY + (railY - cruiseY) * t];
+    } else if (s <= diveStart) {
+      // Phase 3: Hold at rail
+      return [s, railY];
+    } else if (s <= diveEnd) {
+      // Phase 4: Dive from rail to black line
+      const f = (s - diveStart) / (diveEnd - diveStart);
+      const t = f * f * (3 - 2 * f);
+      return [s, railY + (blackY - railY) * t];
+    } else {
+      // Phase 5: Sprint on black line
+      return [s, blackY];
+    }
+  });
+  renderTrajectoryGrid();
+}
+
+function resetTrajectoryToBromont() {
+  const W = config.W;
+  const refAboveRed = BROMONT_WIDTH - RED_LINE;
+  const newAboveRed = W - RED_LINE;
+  const scale = newAboveRed / refAboveRed;
+  trajectory = BROMONT_TRAJECTORY.map(([s, y]) => {
+    if (y <= RED_LINE) return [s, y];
+    const scaled = RED_LINE + (y - RED_LINE) * scale;
+    return [s, Math.min(Math.max(scaled, 0), W)];
+  });
+  renderTrajectoryGrid();
+}
+
+function getTrackSectionAtDistance(s_m) {
+  // Compute which track section a black-line distance falls in
+  // s_eff=0 at mid-back-straight, S_OFFSET converts to global
+  const L = config.L_BLACK || 59;
+  const lap = config.LAP_LENGTH || 250;
+  const R = (lap - 2 * L) / (2 * Math.PI);
+  const arc = Math.PI * R;
+  const sOffset = L + arc + 0.5 * L;
+  const sGlobal = s_m + sOffset;
+  const sMod = ((sGlobal % lap) + lap) % lap;
+
+  if (sMod < L) return 'HS';            // Home Straight
+  if (sMod < L + arc / 2) return 'T1';  // Turn 1
+  if (sMod < L + arc) return 'T2';      // Turn 2
+  if (sMod < 2 * L + arc) return 'BS';  // Back Straight
+  if (sMod < 2 * L + arc + arc / 2) return 'T3'; // Turn 3
+  return 'T4';                           // Turn 4
+}
+
+function renderTrajectoryGrid() {
+  const container = document.getElementById('trajectory-grid');
+  const W = config.W;
+
+  let html = '<table style="width:100%;border-collapse:collapse;">';
+  html += '<tr style="color:var(--text-muted);font-size:9px;border-bottom:1px solid var(--border);">' +
+    '<th style="width:38px;text-align:left;padding:2px;">s_m</th>' +
+    '<th style="width:24px;text-align:center;padding:2px;">sec</th>' +
+    '<th style="width:50px;text-align:right;padding:2px;">y_m</th>' +
+    '<th style="padding:2px 4px;">pos</th>' +
+    '</tr>';
+
+  trajectory.forEach(([s, y], i) => {
+    const section = getTrackSectionAtDistance(s);
+    const isTimed = s >= 695;
+    const is200Start = s === 695;
+    const pct = W > 0 ? Math.max(0, Math.min(100, (y / W) * 100)) : 0;
+
+    // Color-code sections
+    const secColors = { HS: '#4ade80', BS: '#4ade80', T1: '#fbbf24', T2: '#fbbf24', T3: '#fbbf24', T4: '#fbbf24' };
+    const secColor = secColors[section] || '#7a8ba0';
+    const rowBg = is200Start ? 'rgba(239,68,68,0.15)' : (isTimed ? 'rgba(59,130,246,0.08)' : 'transparent');
+
+    html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);">`;
+    html += `<td style="padding:1px 2px;color:${isTimed ? '#60a5fa' : 'var(--text-secondary)'};font-weight:${is200Start ? '700' : '400'};">${s}${is200Start ? ' ▶' : ''}</td>`;
+    html += `<td style="padding:1px 2px;text-align:center;color:${secColor};font-size:9px;">${section}</td>`;
+    html += `<td style="padding:1px 2px;text-align:right;">` +
+      `<input type="number" data-idx="${i}" value="${y.toFixed(2)}" min="0" max="${W}" step="0.1" ` +
+      `style="width:46px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text-primary);font-family:var(--font-mono);font-size:10px;text-align:right;padding:1px 3px;outline:none;" ` +
+      `class="traj-input"></td>`;
+    html += `<td style="padding:1px 4px;"><div style="width:100%;height:8px;background:var(--bg3);border-radius:2px;position:relative;overflow:hidden;">` +
+      `<div style="width:${pct}%;height:100%;background:${isTimed ? '#3b82f6' : 'var(--accent)'};border-radius:2px;transition:width 0.1s;"></div>` +
+      `</div></td>`;
+    html += '</tr>';
+  });
+  html += '</table>';
+  container.innerHTML = html;
+
+  // Attach input handlers
+  container.querySelectorAll('.traj-input').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const idx = parseInt(e.target.dataset.idx);
+      let val = parseFloat(e.target.value);
+      if (isNaN(val)) val = 0;
+      val = Math.max(0, Math.min(W, val));
+      trajectory[idx][1] = val;
+      e.target.value = val.toFixed(2);
+      // Update the bar
+      const pct = W > 0 ? (val / W) * 100 : 0;
+      const bar = e.target.closest('tr').querySelector('div > div');
+      if (bar) bar.style.width = pct + '%';
+    });
+  });
+}
+
+// Trajectory reset buttons
+function setupTrajectoryButtons() {
+  document.getElementById('traj-reset-bromont').addEventListener('click', () => {
+    // Load raw Bromont values — no scaling
+    trajectory = BROMONT_TRAJECTORY.map(([s, y]) => [s, y]);
+    renderTrajectoryGrid();
+    scheduleUpdate();
+  });
+  document.getElementById('traj-reset-scale').addEventListener('click', () => {
+    // Scale Bromont to current track width (above red line only)
+    resetTrajectoryToBromont();
+    scheduleUpdate();
+  });
+}
+
+// Re-render trajectory when track geometry changes (clamp y_m to new width)
+function clampTrajectoryToWidth() {
+  const W = config.W;
+  trajectory.forEach(pt => { pt[1] = Math.max(0, Math.min(W, pt[1])); });
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+
+buildControls();
+updatePresetButtons();
+setupTrajectoryButtons();
+resetTrajectoryToBromont();
+
+// Lap length dropdown
+const lapSelect = document.getElementById('lap-length-select');
+lapSelect.value = config.LAP_LENGTH || 250;
+lapSelect.addEventListener('change', () => {
+  const lap = parseInt(lapSelect.value);
+  config.LAP_LENGTH = lap;
+  // Recalculate turn radius for new lap length
+  config.a_BLACK = (lap - 2 * config.L_BLACK) / (2 * Math.PI);
+  config.b_BLACK = config.a_BLACK;
+  activePreset = null;
+  updatePresetButtons();
+  scheduleUpdate();
+});
+
+doUpdate();
+
+// ════════════════════════════════════════════════════════════════
+// SAVE TO V2 APP
+// ════════════════════════════════════════════════════════════════
+
+
+// ════════════════════════════════════════════════════════════════
+// SAVE CONFIG (geometry + trajectory → JSON file on disk)
+// ════════════════════════════════════════════════════════════════
+
+// New Track button — clears everything for a fresh start
+document.getElementById('new-track-btn').addEventListener('click', () => {
+  activePreset = '__new__';
+  // Reset to sensible defaults for a new track
+  config.LAP_LENGTH = 250;
+  config.L_BLACK = 41;
+  config.a_BLACK = (250 - 2 * 41) / (2 * Math.PI);
+  config.b_BLACK = config.a_BLACK;
+  config.W = 7.0;
+  config.banking_turn_deg = 42;
+  config.banking_straight_deg = 13;
+  config.FINISH_LINE_DISTANCE = 29;
+  config.SPRINT_DISTANCE = 200;
+  syncControls();
+  resetTrajectoryToBromont(); // Scale Bromont default as starting point
+
+  // Clear name and status
+  document.getElementById('save-track-name').value = '';
+  document.getElementById('save-track-altitude').value = '0';
+  document.getElementById('save-track-status').textContent = 'New track — set geometry, name it, then Save.';
+  document.getElementById('save-track-status').style.color = 'var(--info)';
+
+  // Show "New Track" in dropdown
+  const sel = document.getElementById('preset-select');
+  if (sel) sel.value = '__new__';
+
+  scheduleUpdate();
+});
+
+document.getElementById('save-config-btn').addEventListener('click', async () => {
+  const nameInput = document.getElementById('save-track-name');
+  const altInput = document.getElementById('save-track-altitude');
+  const statusEl = document.getElementById('save-track-status');
+  const name = (nameInput.value.trim());
+
+  if (!name) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Enter a track name first.';
+    return;
+  }
+
+  // Warn if overwriting an existing built-in preset
+  const key = name.replace(/ /g, '_').replace(/[()'"]/g, '');
+  const isBuiltIn = PRESETS[name] && TRACK_COUNTRY[name] !== 'Saved' && TRACK_COUNTRY[name] !== 'Custom';
+  if (isBuiltIn) {
+    if (!confirm(`"${name}" is a built-in track preset. Save will create a config file that overrides it. Continue?`)) {
+      statusEl.textContent = 'Cancelled.';
+      return;
+    }
+  }
+
+  const payload = {
+    name: name,
+    geometry: {
+      straight_m: config.L_BLACK,
+      banking_turn_deg: config.banking_turn_deg,
+      banking_straight_deg: config.banking_straight_deg,
+      width_m: config.W,
+      lap_m: config.LAP_LENGTH,
+      altitude_m: parseFloat(altInput.value) || 0,
+      finish_line_dist_m: config.FINISH_LINE_DISTANCE,
+    },
+    trajectory: trajectory.map(([s, y]) => ({ s_m: s, y_m: parseFloat(y.toFixed(2)) })),
+  };
+
+  statusEl.style.color = 'var(--text-muted)';
+  statusEl.textContent = 'Saving config...';
+  console.log('Save config:', name, payload);
+
+  const url = 'http://localhost:5200/api/tracks/save-config';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    // Update in-memory state so changes persist without reload
+    if (!window._savedTrackConfigs) window._savedTrackConfigs = {};
+    window._savedTrackConfigs[data.key] = payload;
+    PRESETS[data.key] = _preset(
+      payload.geometry.straight_m, payload.geometry.banking_turn_deg,
+      payload.geometry.banking_straight_deg, payload.geometry.width_m,
+      payload.geometry.altitude_m, payload.geometry.finish_line_dist_m,
+      payload.geometry.lap_m
+    );
+    if (!TRACK_COUNTRY[data.key]) TRACK_COUNTRY[data.key] = 'Saved';
+    activePreset = data.key;
+    if (window.populatePresetDropdown) window.populatePresetDropdown();
+
+    statusEl.style.color = 'var(--success)';
+    statusEl.textContent = `Saved: ${data.key}.json → tracks/`;
+  } catch (err) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'ERR: ' + err.message + ' (is V2 server running?)';
+  }
+});
+</script>
+</body>
+</html>

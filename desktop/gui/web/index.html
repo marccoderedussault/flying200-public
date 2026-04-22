@@ -1,0 +1,4595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flying 200 V2 — Track Cycling Simulation</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+<style>
+/* ============================================================
+   DESIGN SYSTEM — Precision Cockpit
+   ============================================================ */
+:root {
+  /* Base palette */
+  --bg-primary:    #0B0E13;
+  --bg-secondary:  #111520;
+  --bg-panel:      #161B27;
+  --bg-input:      #1C2333;
+  --bg-hover:      #1F2840;
+
+  /* Borders & lines */
+  --border-subtle:  #1E2536;
+  --border-default: #2A3349;
+  --border-active:  #3D4F7A;
+
+  /* Text */
+  --text-primary:    #E8ECF4;
+  --text-secondary:  #8892A8;
+  --text-muted:      #525D78;
+  --text-label:      #6B7999;
+
+  /* Accent — amber/gold (velodrome track wood) */
+  --accent:          #E5A836;
+  --accent-dim:      #B88424;
+  --accent-glow:     rgba(229, 168, 54, 0.12);
+  --accent-text:     #F5C65C;
+
+  /* Data colors */
+  --color-power:     #34D399;  /* emerald green */
+  --color-speed:     #38BDF8;  /* sky blue */
+  --color-cda:       #F97316;  /* orange */
+  --color-standing:  #F43F5E;  /* rose red */
+  --color-seated:    #818CF8;  /* indigo */
+  --color-delta-pos: #22C55E;
+  --color-delta-neg: #EF4444;
+
+  /* Status */
+  --status-success:  #22C55E;
+  --status-warning:  #F59E0B;
+  --status-error:    #EF4444;
+  --status-info:     #38BDF8;
+
+  /* Dimensions */
+  --sidebar-width:   72px;
+  --sidebar-expanded: 220px;
+  --header-height:   52px;
+  --radius-sm:       4px;
+  --radius-md:       8px;
+  --radius-lg:       12px;
+
+  /* Typography */
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Cascadia Code', monospace;
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { font-size: 14px; }
+
+body {
+  font-family: var(--font-display);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, select, button, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: var(--header-height) 1fr 32px;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar main"
+    "sidebar statusbar";
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ============================================================
+   HEADER BAR
+   ============================================================ */
+.header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 10;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.session-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-dim);
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--accent-text);
+  letter-spacing: 0.02em;
+}
+
+.session-badge .dot {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.session-info {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-weight: 300;
+}
+
+.session-info strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.track-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-select label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+select.input-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 6px 28px 6px 10px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236B7999' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.15s;
+}
+
+select.input-select:hover { border-color: var(--border-active); }
+select.input-select:focus { border-color: var(--accent); outline: none; }
+
+/* ============================================================
+   SIDEBAR NAVIGATION
+   ============================================================ */
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-subtle);
+  padding: 12px 0;
+  z-index: 20;
+}
+
+.sidebar-logo {
+  width: 42px; height: 42px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.sidebar-logo svg {
+  width: 32px; height: 32px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.nav-item {
+  width: 56px; height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  position: relative;
+  color: var(--text-muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.nav-item.active {
+  background: var(--accent-glow);
+  border-color: var(--accent-dim);
+  color: var(--accent-text);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.nav-item svg {
+  width: 20px; height: 20px;
+  stroke-width: 1.5;
+  fill: none;
+  stroke: currentColor;
+}
+
+.nav-item .nav-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.nav-item .nav-badge {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--status-success);
+}
+
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+/* ============================================================
+   MAIN CONTENT
+   ============================================================ */
+.main-content {
+  grid-area: main;
+  overflow: hidden;
+  position: relative;
+}
+
+.tab-page {
+  display: none;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 24px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.tab-page.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   STATUS BAR
+   ============================================================ */
+.statusbar {
+  grid-area: statusbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px 0 calc(var(--sidebar-width) + 0px);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding-left: 24px;
+}
+
+.statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-indicator .dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--status-success);
+}
+
+/* ============================================================
+   PANEL SYSTEM
+   ============================================================ */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+}
+
+.panel-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.panel-title .accent { color: var(--accent-text); }
+
+.panel-body {
+  padding: 16px;
+}
+
+.panel-body.compact { padding: 12px; }
+
+.panel-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(0,0,0,0.15);
+}
+
+/* ============================================================
+   FORM CONTROLS
+   ============================================================ */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group.full-width { grid-column: 1 / -1; }
+
+.form-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-label);
+}
+
+.form-label .unit {
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.input-field {
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.input-field:hover { border-color: var(--border-active); }
+
+.input-field:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.input-field.mono-value {
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+.form-grid.cols-3 .input-field {
+  font-size: 0.82rem;
+  padding: 5px 8px;
+}
+
+/* Profile grid table */
+.profile-grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.profile-grid-table col.col-s   { width: 18%; }
+.profile-grid-table col.col-p   { width: 28%; }
+.profile-grid-table col.col-y   { width: 27%; }
+.profile-grid-table col.col-cda { width: 27%; }
+.profile-grid-table th {
+  position: sticky; top: 0;
+  background: var(--bg-panel);
+  color: var(--text-label);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 4px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-default);
+}
+.profile-grid-table td { padding: 2px 4px; border-bottom: 1px solid var(--border-subtle); text-align: center; }
+.grid-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 2px 4px;
+  text-align: right;
+  border-radius: var(--radius-sm);
+}
+.grid-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s var(--ease-out);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.btn-secondary {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+.btn-lg { padding: 10px 24px; font-size: 0.88rem; }
+
+.btn svg {
+  width: 16px; height: 16px;
+  stroke-width: 2;
+  fill: none;
+  stroke: currentColor;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+/* ============================================================
+   DATA READOUTS — precision number displays
+   ============================================================ */
+.readout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.readout {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.readout-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.readout-value {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.readout-value .unit {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+
+.readout.highlight {
+  border-color: var(--accent-dim);
+  background: linear-gradient(135deg, var(--accent-glow), var(--bg-input));
+}
+
+.readout.highlight .readout-value { color: var(--accent-text); }
+
+.readout.success .readout-value { color: var(--color-delta-pos); }
+.readout.danger .readout-value  { color: var(--color-delta-neg); }
+
+/* ============================================================
+   DATA TABLE
+   ============================================================ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.data-table thead th {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+}
+
+.data-table tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.data-table tbody tr:hover td {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.data-table tbody td.num {
+  text-align: right;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.data-table thead th.num {
+  text-align: right;
+}
+
+/* Combined Details table: tight cells, grouped headers, base/Δ subcols */
+.details-combined { font-size: 0.72rem; border-collapse: separate; border-spacing: 0; }
+.details-combined th, .details-combined td { padding: 3px 6px !important; }
+/* Both header rows stick when scrolling; sub row sits below the group row. */
+.details-combined thead tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg-panel);
+  box-shadow: 0 1px 0 var(--border-default);
+}
+.details-combined thead tr:last-child th {
+  position: sticky;
+  top: 28px;        /* height of the first header row */
+  z-index: 2;
+  background: var(--bg-panel);
+  box-shadow: 0 1px 0 var(--border-default);
+}
+.details-combined thead th.grp {
+  text-align: center;
+  border-left: 1px solid var(--border-default);
+}
+.details-combined thead th.sub {
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding-top: 2px !important;
+  padding-bottom: 4px !important;
+}
+.details-combined thead th .sub-note {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.details-combined tbody td.base { color: var(--text-muted); }
+.details-combined tbody td.delta { font-weight: 500; }
+/* Vertical separators between metric groups: every 3rd column starting after the 2 fixed cols */
+.details-combined tbody td:nth-child(3n+3),
+.details-combined thead tr:last-child th:nth-child(3n+1) {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.data-table tbody td.power  { color: var(--color-power); }
+.data-table tbody td.speed  { color: var(--color-speed); }
+.data-table tbody td.accent { color: var(--accent-text); }
+
+/* ============================================================
+   CHART CONTAINER
+   ============================================================ */
+.chart-container {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: relative;
+  min-height: 280px;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+}
+
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.chart-tab {
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+.chart-tab:hover { border-color: var(--border-active); color: var(--text-primary); }
+.chart-tab.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+.chart-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.chart-placeholder svg {
+  width: 48px; height: 48px;
+  stroke: var(--border-default);
+  stroke-width: 1;
+  fill: none;
+}
+
+.chart-placeholder span {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+/* ============================================================
+   EFFORT LIST
+   ============================================================ */
+.effort-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.effort-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.effort-item:hover {
+  border-color: var(--border-active);
+  background: var(--bg-hover);
+}
+
+.effort-item.selected {
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+.effort-item .effort-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.effort-item .effort-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.effort-item .effort-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.confidence-bar {
+  width: 48px; height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidence-bar .fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.confidence-bar .fill.high   { background: var(--status-success); }
+.confidence-bar .fill.medium { background: var(--status-warning); }
+.confidence-bar .fill.low    { background: var(--status-error); }
+
+/* ============================================================
+   THREE-PANEL (Simulation comparison)
+   ============================================================ */
+.three-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 320px;
+  gap: 16px;
+  height: calc(100vh - var(--header-height) - 32px - 40px);
+}
+
+.sim-panel { overflow-y: auto; }
+
+.sim-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sim-number {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sim-number.s1 { background: var(--color-speed); color: var(--bg-primary); }
+.sim-number.s2 { background: var(--color-standing); color: white; }
+.sim-number.delta { background: var(--accent); color: var(--bg-primary); }
+
+.sim-panel-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================
+   TRACK VISUALIZATION
+   ============================================================ */
+.track-viz {
+  position: relative;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 400px;
+}
+
+.track-viz canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================
+   POWER CURVE EDITOR
+   ============================================================ */
+.power-grid {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr;
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.power-grid .pg-header {
+  padding: 8px 10px;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-panel);
+}
+
+.power-grid .pg-cell {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+}
+
+.power-grid .pg-duration {
+  color: var(--text-muted);
+  font-weight: 500;
+  justify-content: flex-end;
+  padding-right: 12px;
+}
+
+.power-grid input.pg-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: right;
+  transition: all 0.15s;
+}
+
+.power-grid input.pg-input:hover { background: var(--bg-hover); }
+.power-grid input.pg-input:focus {
+  background: var(--bg-input);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.power-grid input.pg-input.seated { color: var(--color-seated); }
+.power-grid input.pg-input.standing { color: var(--color-standing); }
+
+/* ============================================================
+   CALIBRATION TABLE
+   ============================================================ */
+.cal-table {
+  display: grid;
+  grid-template-columns: 100px repeat(4, 1fr);
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.cal-table .cal-header {
+  padding: 8px 10px;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-default);
+  background: var(--bg-panel);
+  text-align: right;
+}
+
+.cal-table .cal-header:first-child { text-align: left; }
+
+.cal-table .cal-cell {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+.cal-table .cal-cell:first-child {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.cal-table .cal-cell.delta-pos { color: var(--color-delta-pos); }
+.cal-table .cal-cell.delta-neg { color: var(--color-delta-neg); }
+
+.cal-table input.cal-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-align: right;
+  transition: all 0.15s;
+}
+
+.cal-table input.cal-input:hover { background: var(--bg-hover); }
+.cal-table input.cal-input:focus {
+  background: var(--bg-input);
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* ============================================================
+   OPTIMIZER PROGRESS
+   ============================================================ */
+.progress-bar {
+  height: 4px;
+  background: var(--bg-primary);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s;
+  position: relative;
+}
+
+.progress-bar .fill::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 20px; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-text));
+  animation: progress-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-glow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* ============================================================
+   STATE / CONFIG — key-value display
+   ============================================================ */
+.kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.kv-key {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.kv-value {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.kv-value.success { color: var(--status-success); }
+.kv-value.warning { color: var(--status-warning); }
+.kv-value.error   { color: var(--status-error); }
+
+/* ============================================================
+   SECTION HEADERS & DIVIDERS
+   ============================================================ */
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-default), transparent);
+}
+
+.section-subtitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   SPLIT LAYOUT
+   ============================================================ */
+.split-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  height: calc(100vh - var(--header-height) - 32px - 40px);
+}
+
+.split-layout .split-sidebar { overflow-y: auto; min-width: 0; }
+.split-layout .split-main { overflow-y: auto; min-width: 0; }
+
+/* Optimizer tab: compact sidebar that flexes from ~210px up to 320px,
+   leaving more room for the wide combined Details table on the right. */
+#tab-optimizer .split-layout { grid-template-columns: minmax(210px, 320px) 1fr; }
+#tab-optimizer .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+#tab-optimizer .form-group.full-width { grid-column: 1 / -1; }
+#tab-optimizer .form-label { font-size: 0.66rem; letter-spacing: 0.06em; }
+#tab-optimizer .input-field { padding: 5px 8px; font-size: 0.85rem; }
+#tab-optimizer .input-field.mono-value { font-size: 0.9rem; padding: 5px 8px; }
+#tab-optimizer .panel-body { padding: 10px 12px; }
+#tab-optimizer .panel-footer { padding: 10px 12px; }
+#tab-optimizer .readout-grid { gap: 8px; }
+#tab-optimizer .readout .readout-value { font-size: 1.05rem; }
+#tab-optimizer .input-select { padding: 5px 8px; font-size: 0.85rem; min-width: 0; }
+
+/* ============================================================
+   BADGE & TAG
+   ============================================================ */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tag-success { background: rgba(34,197,94,0.12); color: var(--status-success); }
+.tag-warning { background: rgba(245,158,11,0.12); color: var(--status-warning); }
+.tag-error   { background: rgba(239,68,68,0.12); color: var(--status-error); }
+.tag-info    { background: rgba(56,189,248,0.12); color: var(--status-info); }
+
+/* ============================================================
+   TOOLTIP
+   ============================================================ */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* ============================================================
+   FILE INPUT
+   ============================================================ */
+.file-drop-zone {
+  border: 2px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-input);
+}
+
+.file-drop-zone:hover {
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+.file-drop-zone.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.file-drop-zone .drop-icon {
+  display: block;
+  margin: 0 auto 10px;
+  width: 36px; height: 36px;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.file-drop-zone .drop-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.file-drop-zone .drop-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ============================================================
+   INLINE TOGGLE (for granularity selector etc.)
+   ============================================================ */
+.toggle-group {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.toggle-btn {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-right: 1px solid var(--border-default);
+}
+
+.toggle-btn:last-child { border-right: none; }
+
+.toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.toggle-btn.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- =====================================================
+       SIDEBAR NAVIGATION
+       ===================================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo" data-tooltip="Flying 200 V2">
+      <svg viewBox="0 0 32 32">
+        <circle cx="16" cy="16" r="14" stroke="var(--accent)" stroke-width="2" fill="none"/>
+        <circle cx="16" cy="16" r="8" stroke="var(--accent-dim)" stroke-width="1" fill="none" stroke-dasharray="3 2"/>
+        <circle cx="16" cy="16" r="3" fill="var(--accent)"/>
+      </svg>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-tab="fit" data-tooltip="FIT Analysis">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span class="nav-label">FIT</span>
+      </a>
+
+      <a class="nav-item" data-tab="track" data-tooltip="Track View">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6" /><line x1="12" y1="6" x2="12" y2="18" stroke-dasharray="2 2"/></svg>
+        <span class="nav-label">Track</span>
+      </a>
+
+      <a class="nav-item" data-tab="power" data-tooltip="Power Curves">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span class="nav-label">Power</span>
+      </a>
+
+      <a class="nav-item" data-tab="simulation" data-tooltip="Simulation">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span class="nav-label">Sim</span>
+      </a>
+
+      <a class="nav-item" data-tab="calibration" data-tooltip="Calibration">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="12"/></svg>
+        <span class="nav-label">Cal</span>
+      </a>
+
+      <a class="nav-item" data-tab="optimizer" data-tooltip="Optimizer">
+        <svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+        <span class="nav-label">Optim</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-item" data-tab="state" data-tooltip="Session State">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        <span class="nav-label">State</span>
+      </a>
+
+      <a class="nav-item" data-tab="config" data-tooltip="Config">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span class="nav-label">Config</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- =====================================================
+       HEADER BAR
+       ===================================================== -->
+  <header class="header">
+    <div class="header-left">
+      <div class="session-badge">
+        <span class="dot"></span>
+        Flying 200 V2
+      </div>
+      <div class="session-info" id="sessionInfo">
+        No profile loaded &mdash; <strong>Bromont 250m</strong>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="track-select">
+        <label>Track</label>
+        <select class="input-select" id="trackSelect">
+          <option value="bromont" selected>Bromont 250m</option>
+          <option value="milton">Milton 250m</option>
+          <option value="mattamy">Mattamy 250m</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================
+       MAIN CONTENT
+       ===================================================== -->
+  <main class="main-content">
+
+    <!-- =====================================================
+         TAB: FIT ANALYSIS
+         ===================================================== -->
+    <div class="tab-page active" id="tab-fit">
+      <div class="section-title">FIT Analysis</div>
+
+      <div class="split-layout">
+        <!-- Left sidebar -->
+        <div class="split-sidebar">
+
+          <!-- File loader -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">FIT File</span>
+            </div>
+            <div class="panel-body">
+              <div class="file-drop-zone" id="fitDropZone">
+                <svg class="drop-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div class="drop-text">Drop .FIT file or click to browse</div>
+                <div class="drop-hint">Supports Garmin, Wahoo, Hammerhead</div>
+              </div>
+              <div id="fitFileInfo" style="display:none; margin-top: 12px;">
+                <div class="kv-list">
+                  <div class="kv-row"><span class="kv-key">File</span><span class="kv-value" id="fitFileName">—</span></div>
+                  <div class="kv-row"><span class="kv-key">Duration</span><span class="kv-value" id="fitDuration">—</span></div>
+                  <div class="kv-row"><span class="kv-key">Max Power</span><span class="kv-value" id="fitMaxPower">—</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gear config -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Gear <span class="accent">Configuration</span></span>
+            </div>
+            <div class="panel-body compact">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Chainring <span class="unit">(teeth)</span></label>
+                  <input type="number" class="input-field mono-value" value="55" id="chainring">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cog <span class="unit">(teeth)</span></label>
+                  <input type="number" class="input-field mono-value" value="12" id="cog">
+                </div>
+              </div>
+              <div style="text-align:right; margin-top:8px;">
+                <span style="font-family:var(--font-mono); font-size:0.78rem; color:var(--text-muted);">
+                  Ratio: <span id="gearRatio" style="color:var(--accent-text); font-weight:600;">4.583</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detected efforts -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Detected <span class="accent">Efforts</span></span>
+              <span class="tag tag-info" id="effortCount">0 found</span>
+            </div>
+            <div class="panel-body compact">
+              <div class="effort-list" id="effortList">
+                <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.82rem;">
+                  Load a FIT file to detect efforts
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual override -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Manual Override</span>
+            </div>
+            <div class="panel-body compact">
+              <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">
+                If auto-detect misses the effort, enter the final row and click Create.
+              </p>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Final Row</label>
+                  <input type="number" class="input-field mono-value" placeholder="—" id="finalRow">
+                </div>
+                <div class="form-group" style="justify-content:flex-end;">
+                  <button class="btn btn-secondary btn-sm" style="margin-top:auto;" id="btnCreateManual">Create Manual</button>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm" style="width:100%; margin-top:6px;" id="btnFindPeaks">Find Power Peaks</button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Actions</span>
+            </div>
+            <div class="panel-body compact">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button class="btn btn-primary" id="btnConvertDistance">
+                  <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                  Convert to Distance Profile
+                </button>
+                <button class="btn btn-secondary" id="btnExportCsv">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export Profile to CSV
+                </button>
+                <button class="btn btn-secondary" id="btnExportSession">
+                  <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Export to Session
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Chart -->
+        <div class="split-main">
+          <div class="panel" style="height:100%;">
+            <div class="panel-header">
+              <span class="panel-title">Effort <span class="accent">Preview</span></span>
+              <div class="toggle-group">
+                <button class="toggle-btn active" id="fitToggleTime">Time</button>
+                <button class="toggle-btn" id="fitToggleDistance">Distance</button>
+              </div>
+            </div>
+            <div class="panel-body" style="height:calc(100% - 48px);">
+              <div class="chart-placeholder" id="fitChartPlaceholder">
+                <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                <span>Select an effort to preview</span>
+              </div>
+              <canvas id="fitChart" style="display:none;"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: TRACK VIEW
+         ===================================================== -->
+    <div class="tab-page" id="tab-track">
+      <div class="section-title">Track View</div>
+
+      <div class="split-layout">
+        <div class="split-sidebar">
+          <!-- Track info -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Track <span class="accent">Geometry</span></span>
+            </div>
+            <div class="panel-body">
+              <div class="kv-list">
+                <div class="kv-row"><span class="kv-key">Track</span><span class="kv-value" id="trackName">Bromont 250m</span></div>
+                <div class="kv-row"><span class="kv-key">Length</span><span class="kv-value" id="trackLength">250.00 m</span></div>
+                <div class="kv-row"><span class="kv-key">Straight</span><span class="kv-value" id="trackStraight">43.0 m</span></div>
+                <div class="kv-row"><span class="kv-key">Turn Radius</span><span class="kv-value" id="trackRadius">26.1 m</span></div>
+                <div class="kv-row"><span class="kv-key">Banking</span><span class="kv-value" id="trackBanking">42.0°</span></div>
+                <div class="kv-row"><span class="kv-key">Width</span><span class="kv-value" id="trackWidth">7.0 m</span></div>
+                <div class="kv-row"><span class="kv-key">Altitude</span><span class="kv-value" id="trackAltitude">155 m</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lap visibility -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Lap Visibility</span>
+            </div>
+            <div class="panel-body compact">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                  <input type="checkbox" checked style="accent-color:var(--accent);"> Lap 1 (0–250m)
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                  <input type="checkbox" checked style="accent-color:var(--accent);"> Lap 2 (250–500m)
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                  <input type="checkbox" checked style="accent-color:var(--accent);"> Lap 3 (500–750m)
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                  <input type="checkbox" checked style="accent-color:var(--accent);"> Finish (750–895m)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Marker table -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Marker <span class="accent">Positions</span></span>
+              <div class="btn-group">
+                <button class="btn btn-ghost btn-sm" id="btnTrackLoad">Load</button>
+                <button class="btn btn-ghost btn-sm" id="btnTrackSave">Save</button>
+              </div>
+            </div>
+            <div class="panel-body compact" style="max-height:260px; overflow-y:auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Distance</th>
+                    <th>Y (m)</th>
+                    <th>Segment</th>
+                  </tr>
+                </thead>
+                <tbody id="markerTable">
+                  <tr><td>0 m</td><td class="num">0.00</td><td>Pursuit Line</td></tr>
+                  <tr><td>100 m</td><td class="num">0.00</td><td>Back Straight</td></tr>
+                  <tr><td>200 m</td><td class="num">0.00</td><td>Turn 3</td></tr>
+                  <tr><td>300 m</td><td class="num">0.00</td><td>Home Straight</td></tr>
+                  <tr><td>400 m</td><td class="num">0.00</td><td>Turn 1</td></tr>
+                  <tr><td>500 m</td><td class="num">0.00</td><td>Back Straight</td></tr>
+                  <tr><td>600 m</td><td class="num">0.00</td><td>Turn 3</td></tr>
+                  <tr><td>695 m</td><td class="num accent">0.00</td><td>200m Start</td></tr>
+                  <tr><td>800 m</td><td class="num">0.00</td><td>Turn 1</td></tr>
+                  <tr><td>895 m</td><td class="num accent">0.00</td><td>Finish</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Track canvas -->
+        <div class="split-main">
+          <div class="panel" style="height:100%;">
+            <div class="panel-header">
+              <span class="panel-title">Overhead <span class="accent">View</span></span>
+            </div>
+            <div class="panel-body" style="height:calc(100% - 48px); padding:0;">
+              <div class="track-viz" id="trackCanvas" style="height:100%;display:flex;align-items:center;justify-content:center;">
+                <svg id="trackVizSvg" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;"></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: POWER CURVES
+         ===================================================== -->
+    <div class="tab-page" id="tab-power">
+      <div class="section-title">Power Curves</div>
+
+      <div class="split-layout">
+        <div class="split-sidebar" style="overflow-y:auto;">
+
+          <!-- Actions -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Import <span class="accent">Source</span></span>
+            </div>
+            <div class="panel-body compact">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button class="btn btn-secondary" id="btnPcImportFit">
+                  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Import from FIT File
+                </button>
+                <button class="btn btn-secondary" id="btnPcExportSession">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Export to Session
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Power curve editor grid -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Duration <span class="accent">/ Power</span></span>
+            </div>
+            <div class="panel-body compact" style="padding:0; max-height:500px; overflow-y:auto;">
+              <div class="power-grid">
+                <div class="pg-header">Sec</div>
+                <div class="pg-header" style="color:var(--color-seated);">Seated (W)</div>
+                <div class="pg-header" style="color:var(--color-standing);">Standing (W)</div>
+
+                <!-- 1-10 seconds shown, rest scrollable -->
+                <div class="pg-cell pg-duration">1</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">2</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">3</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">4</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">5</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">6</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">7</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">8</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">9</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">10</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">15</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">20</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">25</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">30</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">40</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">50</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">60</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+
+                <div class="pg-cell pg-duration">70</div>
+                <div class="pg-cell"><input type="number" class="pg-input seated" placeholder="—"></div>
+                <div class="pg-cell"><input type="number" class="pg-input standing" placeholder="—"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: power curve chart -->
+        <div class="split-main">
+          <div class="panel" style="height:100%;">
+            <div class="panel-header">
+              <span class="panel-title">Power <span class="accent">Curve</span></span>
+            </div>
+            <div class="panel-body" style="height:calc(100% - 48px);">
+              <div class="chart-container" id="pcChartContainer" style="height:100%;">
+                <div class="chart-placeholder" id="pcChartPlaceholder">
+                  <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <span>Enter power values to see the curve</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: SIMULATION
+         ===================================================== -->
+    <div class="tab-page" id="tab-simulation">
+      <div class="section-title">Simulation</div>
+
+      <div class="three-panel">
+        <!-- SIMULATION 1 -->
+        <div class="sim-panel">
+          <div class="sim-panel-header">
+            <div class="sim-number s1">1</div>
+            <div class="sim-panel-title">Base Simulation</div>
+          </div>
+
+          <!-- Data Source -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Data Source</span>
+              <span class="tag tag-warning" id="sim1Source">No Profile</span>
+            </div>
+            <div class="panel-body compact">
+              <button class="btn btn-secondary btn-sm" style="width:100%;" id="btnLoadCsv1">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Load Profile CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Parameters -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Parameters</span>
+            </div>
+            <div class="panel-body compact">
+              <div class="form-grid cols-3">
+                <div class="form-group">
+                  <label class="form-label">Mass <span class="unit">(kg)</span></label>
+                  <input type="number" class="input-field mono-value" value="92.0" step="0.1" id="sim1Mass">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Rho <span class="unit">(kg/m³)</span></label>
+                  <input type="number" class="input-field mono-value" value="1.1627" step="0.001" id="sim1Rho">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">C_rr</label>
+                  <input type="number" class="input-field mono-value" value="0.0020" step="0.0001" id="sim1Crr">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">V₀ <span class="unit">(m/s)</span></label>
+                  <input type="number" class="input-field mono-value" value="5.0" step="0.1" id="sim1V0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ds <span class="unit">(m)</span></label>
+                  <input type="number" class="input-field mono-value" value="0.25" step="0.05" id="sim1Ds">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Drivetrain Eff</label>
+                  <input type="number" class="input-field mono-value" value="0.98" step="0.001" id="sim1Eff">
+                </div>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn btn-primary btn-lg" style="width:100%;" id="btnRunSim1">
+                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Simulation
+              </button>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Results</span>
+            </div>
+            <div class="panel-body" id="sim1Results">
+              <div class="readout-grid">
+                <div class="readout highlight">
+                  <span class="readout-label">Flying 200</span>
+                  <span class="readout-value">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Total Time</span>
+                  <span class="readout-value">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Entry Speed</span>
+                  <span class="readout-value">—<span class="unit">km/h</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Exit Speed</span>
+                  <span class="readout-value">—<span class="unit">km/h</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Sprint Time</span>
+                  <span class="readout-value">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Avg Power</span>
+                  <span class="readout-value">—<span class="unit">W</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Velocity <span class="accent">Profile</span></span>
+            </div>
+            <div class="panel-body">
+              <div class="chart-container" id="sim1ChartContainer">
+                <div class="chart-placeholder">
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Run simulation to see results</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIMULATION 2 -->
+        <div class="sim-panel">
+          <div class="sim-panel-header">
+            <div class="sim-number s2">2</div>
+            <div class="sim-panel-title">Modified Simulation</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Parameter Overrides</span>
+              <span class="tag tag-info">Inherits Sim 1</span>
+            </div>
+            <div class="panel-body compact">
+              <div class="form-grid cols-3">
+                <div class="form-group">
+                  <label class="form-label">Mass <span class="unit">(kg)</span></label>
+                  <input type="number" class="input-field mono-value" placeholder="inherit" style="color:var(--text-muted);" id="sim2Mass">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Rho <span class="unit">(kg/m³)</span></label>
+                  <input type="number" class="input-field mono-value" placeholder="inherit" style="color:var(--text-muted);" id="sim2Rho">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">C_rr</label>
+                  <input type="number" class="input-field mono-value" placeholder="inherit" style="color:var(--text-muted);" id="sim2Crr">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">V₀ <span class="unit">(m/s)</span></label>
+                  <input type="number" class="input-field mono-value" placeholder="inherit" style="color:var(--text-muted);" id="sim2V0">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Profile <span class="accent">Editor</span></span>
+              <button class="btn btn-secondary btn-sm" id="btnLoadGrid">Load from Sim 1</button>
+            </div>
+            <div class="panel-body" style="padding:0;">
+              <!-- Range modifier row -->
+              <div style="display:flex; gap:4px; padding:8px; border-bottom:1px solid var(--border-subtle); flex-wrap:wrap;">
+                <input type="number" class="input-field mono-value" id="rangeFrom" placeholder="From m" style="width:70px; font-size:0.75rem; padding:4px 6px;">
+                <input type="number" class="input-field mono-value" id="rangeTo" placeholder="To m" style="width:70px; font-size:0.75rem; padding:4px 6px;">
+                <select class="input-field" id="rangeOp" style="width:110px; font-size:0.72rem; padding:4px 6px;">
+                  <option value="add_P">Add Power</option>
+                  <option value="mul_P">Multiply P</option>
+                  <option value="set_P">Set Power</option>
+                  <option value="add_y">Add y_m</option>
+                  <option value="set_y">Set y_m</option>
+                  <option value="set_CdA">Set CdA</option>
+                </select>
+                <input type="number" class="input-field mono-value" id="rangeVal" placeholder="Value" style="width:70px; font-size:0.75rem; padding:4px 6px;">
+                <button class="btn btn-secondary btn-sm" id="btnApplyRange">Apply</button>
+              </div>
+              <!-- Scrollable table -->
+              <div style="max-height:350px; overflow-y:auto;">
+                <table class="profile-grid-table" id="profileGrid">
+                  <colgroup>
+                    <col class="col-s"><col class="col-p"><col class="col-y"><col class="col-cda">
+                  </colgroup>
+                  <thead><tr>
+                    <th>s(m)</th><th>P(W)</th><th>y(m)</th><th>CdA</th>
+                  </tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn btn-primary btn-lg" style="width:100%; background:var(--color-standing); border-color:var(--color-standing);" id="btnRunSim2">
+                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Simulation 2
+              </button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Results</span>
+            </div>
+            <div class="panel-body" id="sim2Results">
+              <div class="readout-grid">
+                <div class="readout highlight" style="border-color:var(--color-standing);">
+                  <span class="readout-label">Flying 200</span>
+                  <span class="readout-value" style="color:var(--color-standing);">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Total Time</span>
+                  <span class="readout-value">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Entry Speed</span>
+                  <span class="readout-value">—<span class="unit">km/h</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Exit Speed</span>
+                  <span class="readout-value">—<span class="unit">km/h</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Velocity <span class="accent">Profile</span></span>
+            </div>
+            <div class="panel-body">
+              <div class="chart-container" id="sim2ChartContainer">
+                <div class="chart-placeholder">
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Run Sim 2 to compare</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DELTA PANEL -->
+        <div class="sim-panel">
+          <div class="sim-panel-header">
+            <div class="sim-number delta">&Delta;</div>
+            <div class="sim-panel-title">Delta</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Comparison</span>
+            </div>
+            <div class="panel-body">
+              <div style="display:flex; flex-direction:column; gap:10px;" id="deltaResults">
+                <div class="readout" style="text-align:center;">
+                  <span class="readout-label">T200 Delta</span>
+                  <span class="readout-value" style="font-size:1.8rem;">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Total Delta</span>
+                  <span class="readout-value">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Entry Speed</span>
+                  <span class="readout-value">—<span class="unit">km/h</span></span>
+                </div>
+                <div class="readout">
+                  <span class="readout-label">Exit Speed</span>
+                  <span class="readout-value">—<span class="unit">km/h</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Parameter Diffs</span>
+            </div>
+            <div class="panel-body compact">
+              <div class="kv-list" style="font-size:0.78rem;" id="deltaDiffs">
+                <div class="kv-row"><span class="kv-key">Mass</span><span class="kv-value">—</span></div>
+                <div class="kv-row"><span class="kv-key">Rho</span><span class="kv-value">—</span></div>
+                <div class="kv-row"><span class="kv-key">C_rr</span><span class="kv-value">—</span></div>
+                <div class="kv-row"><span class="kv-key">CdA</span><span class="kv-value">—</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: CALIBRATION
+         ===================================================== -->
+    <div class="tab-page" id="tab-calibration">
+      <div class="section-title">Calibration</div>
+
+      <div style="max-width:1200px;">
+        <!-- Granularity selector -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <div class="section-subtitle" style="margin:0;">Segment Granularity</div>
+          <div class="toggle-group" id="calGranularity">
+            <button class="toggle-btn">10m</button>
+            <button class="toggle-btn active">50m</button>
+            <button class="toggle-btn">100m</button>
+            <button class="toggle-btn">200m</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Model vs <span class="accent">Actual</span></span>
+            <button class="btn btn-secondary btn-sm" id="btnCalRecalculate">Recalculate</button>
+          </div>
+          <div class="panel-body" style="padding:0; overflow-x:auto;" id="calTableContainer">
+            <div class="cal-table">
+              <div class="cal-header">Segment</div>
+              <div class="cal-header">Model (s)</div>
+              <div class="cal-header">Actual (s)</div>
+              <div class="cal-header">Delta (s)</div>
+              <div class="cal-header">Implied CdA</div>
+
+              <div class="cal-cell">0–50m</div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell"><input type="text" class="cal-input" placeholder="enter"></div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell">—</div>
+
+              <div class="cal-cell">50–100m</div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell"><input type="text" class="cal-input" placeholder="enter"></div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell">—</div>
+
+              <div class="cal-cell">100–150m</div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell"><input type="text" class="cal-input" placeholder="enter"></div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell">—</div>
+
+              <div class="cal-cell">150–200m</div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell"><input type="text" class="cal-input" placeholder="enter"></div>
+              <div class="cal-cell">—</div>
+              <div class="cal-cell">—</div>
+            </div>
+          </div>
+          <div class="panel-footer" style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:0.72rem; color:var(--text-muted);">Enter actual times from timing system to compute implied CdA</span>
+            <div class="readout" style="margin:0; padding:6px 12px; background:transparent; border:none;">
+              <span class="readout-label">Total Delta</span>
+              <span class="readout-value" style="font-size:1.1rem;">—<span class="unit">s</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: OPTIMIZER
+         ===================================================== -->
+    <div class="tab-page" id="tab-optimizer">
+      <div class="section-title">Optimizer</div>
+
+      <div class="split-layout">
+        <div class="split-sidebar">
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Energy Budget <span class="accent">Optimizer</span></span>
+            </div>
+            <div class="panel-body">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Total Energy <span class="unit">(kJ)</span></label>
+                  <input type="number" class="input-field mono-value" value="45.0" step="0.5" id="optEnergy">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Iterations</label>
+                  <input type="number" class="input-field mono-value" value="100" id="optIterations">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Segment <span class="unit">(m)</span></label>
+                  <input type="number" class="input-field mono-value" value="15" step="5" min="5" id="optSegmentM">
+                </div>
+                <div class="form-group full-width">
+                  <label class="form-label">Method</label>
+                  <select class="input-select" style="width:100%;" id="optMethod">
+                    <option>Energy Budget</option>
+                    <option>Power Redistribution</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Active power curve indicator (sourced from session / config / builtin) -->
+              <div id="optPowerCurveBox" style="margin-top:10px; padding:8px 10px; background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); font-size:0.72rem;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+                  <span style="text-transform:uppercase; letter-spacing:0.08em; color:var(--text-label); font-weight:600; font-size:0.64rem;">Power Curve</span>
+                  <span id="optPowerCurveSrc" style="color:var(--accent-amber); font-family:var(--font-mono); font-size:0.7rem;">—</span>
+                </div>
+                <div id="optPowerCurveSummary" style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.68rem; line-height:1.5;">
+                  Loading…
+                </div>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn btn-primary btn-lg" style="width:100%;" id="btnRunOptimizer">
+                <svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                Run Optimizer
+              </button>
+              <div class="progress-bar" style="margin-top:10px;">
+                <div class="fill" style="width:0%;" id="optProgressFill"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-muted);">
+                <span id="optIterationText">Iteration: 0 / 100</span>
+                <span id="optBestText">Best: —</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Optimizer results -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Best <span class="accent">Result</span></span>
+            </div>
+            <div class="panel-body">
+              <div class="readout-grid" style="grid-template-columns:1fr 1fr;">
+                <div class="readout highlight">
+                  <span class="readout-label">Optimized T200</span>
+                  <span class="readout-value" id="optT200">—<span class="unit">s</span></span>
+                </div>
+                <div class="readout" id="optImprovementCard">
+                  <span class="readout-label">Improvement</span>
+                  <span class="readout-value" id="optImprovement">—<span class="unit">s</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Position recommendations -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Position <span class="accent">Recommendations</span></span>
+            </div>
+            <div class="panel-body compact">
+              <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.82rem;" id="optPositions">
+                Run optimizer to see recommendations
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: charts -->
+        <div class="split-main">
+          <div class="panel" style="height:100%; display:flex; flex-direction:column;">
+            <div class="panel-header" style="justify-content:space-between;">
+              <span class="panel-title">Optimization <span class="accent">Results</span></span>
+              <div class="chart-tabs" id="optChartTabs" style="display:none;"></div>
+            </div>
+            <div class="panel-body" id="optChartsBody" style="flex:1; display:flex; flex-direction:column; min-height:0; padding:10px;">
+              <div class="chart-placeholder" id="optChartsPlaceholder">
+                <svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                <span>Run optimizer to see comparison charts</span>
+              </div>
+              <div id="optChartsContainer" style="display:none; flex:1; flex-direction:column; min-height:0; position:relative;">
+                <canvas id="optChartMain"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: STATE
+         ===================================================== -->
+    <div class="tab-page" id="tab-state">
+      <div class="section-title">Session State</div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; max-width:1400px;">
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Session <span class="accent">Status</span></span>
+            <span class="tag tag-success">Active</span>
+          </div>
+          <div class="panel-body">
+            <div class="kv-list">
+              <div class="kv-row"><span class="kv-key">Profile</span><span class="kv-value warning">Not loaded</span></div>
+              <div class="kv-row"><span class="kv-key">Power Curve</span><span class="kv-value warning">Not loaded</span></div>
+              <div class="kv-row"><span class="kv-key">Track</span><span class="kv-value success">Bromont 250m</span></div>
+              <div class="kv-row"><span class="kv-key">Last Sim</span><span class="kv-value">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Profile <span class="accent">Summary</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="kv-list">
+              <div class="kv-row"><span class="kv-key">Source</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">Distance</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">Points</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">Power Range</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">CdA Range</span><span class="kv-value">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Last <span class="accent">Simulation</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="kv-list">
+              <div class="kv-row"><span class="kv-key">T200</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">Total Time</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">Mass</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">Rho</span><span class="kv-value">—</span></div>
+              <div class="kv-row"><span class="kv-key">C_rr</span><span class="kv-value">—</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Profile data table -->
+      <div class="panel" style="max-width:1400px; margin-top:16px;">
+        <div class="panel-header">
+          <span class="panel-title">Profile <span class="accent">Data</span></span>
+          <button class="btn btn-ghost btn-sm" id="btnStateRefresh">Refresh</button>
+        </div>
+        <div class="panel-body" style="padding:0; max-height:400px; overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>s (m)</th>
+                <th>y (m)</th>
+                <th>CdA (m²)</th>
+                <th>P (W)</th>
+                <th>Segment</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No profile loaded</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================
+         TAB: CONFIG
+         ===================================================== -->
+    <div class="tab-page" id="tab-config">
+      <div class="section-title">Configuration</div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:1200px;">
+
+        <!-- Environment -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Environment <span class="accent">Parameters</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Air Density <span class="unit">(kg/m³)</span></label>
+                <input type="number" class="input-field mono-value" value="1.1627" step="0.001" id="cfgRho">
+              </div>
+              <div class="form-group">
+                <label class="form-label">C_rr</label>
+                <input type="number" class="input-field mono-value" value="0.0020" step="0.0001" id="cfgCrr">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Drivetrain Eff</label>
+                <input type="number" class="input-field mono-value" value="0.98" step="0.001" id="cfgEff">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Mass <span class="unit">(kg)</span></label>
+                <input type="number" class="input-field mono-value" value="92.0" step="0.1" id="cfgMass">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aero -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Aero <span class="accent">Defaults</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">CdA Seated <span class="unit">(m²)</span></label>
+                <input type="number" class="input-field mono-value" value="0.24" step="0.01" id="cfgCdaSeated">
+              </div>
+              <div class="form-group">
+                <label class="form-label">CdA Standing <span class="unit">(m²)</span></label>
+                <input type="number" class="input-field mono-value" value="0.38" step="0.01" id="cfgCdaStanding">
+              </div>
+              <div class="form-group full-width">
+                <label class="form-label">Bend Factor</label>
+                <input type="number" class="input-field mono-value" value="0.97" step="0.01" id="cfgBendFactor">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Simulation <span class="accent">Parameters</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">ds <span class="unit">(m)</span></label>
+                <input type="number" class="input-field mono-value" value="0.25" step="0.05" id="cfgDs">
+              </div>
+              <div class="form-group">
+                <label class="form-label">V₀ <span class="unit">(m/s)</span></label>
+                <input type="number" class="input-field mono-value" value="5.0" step="0.1" id="cfgV0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">s_total <span class="unit">(m)</span></label>
+                <input type="number" class="input-field mono-value" value="895" step="1" id="cfgSTotal">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Default <span class="accent">Track</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label class="form-label">Default Track</label>
+                <select class="input-select" style="width:100%;" id="cfgDefaultTrack">
+                  <option selected>Bromont 250m</option>
+                  <option>Milton 250m</option>
+                  <option>Mattamy 250m</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Actions -->
+      <div style="max-width:1200px; margin-top:16px; display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" id="btnConfigReset">Reset to Defaults</button>
+        <button class="btn btn-primary" id="btnConfigSave">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Configuration
+        </button>
+      </div>
+
+      <div style="margin-top:12px; font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono); max-width:1200px;">
+        Config file: ~/.flying200/config.json
+      </div>
+    </div>
+
+  </main>
+
+  <!-- =====================================================
+       STATUS BAR
+       ===================================================== -->
+  <footer class="statusbar">
+    <div class="statusbar-left">
+      <div class="status-indicator">
+        <span class="dot"></span>
+        <span id="statusText">Ready</span>
+      </div>
+    </div>
+    <div>
+      <span>Flying 200 V2</span>
+      <span style="margin:0 8px; color:var(--border-default);">|</span>
+      <span>Track Cycling Simulation</span>
+    </div>
+  </footer>
+
+</div>
+
+<!-- =====================================================
+     JAVASCRIPT — API Client + Full Wiring
+     ===================================================== -->
+<script>
+// ─── API Client ──────────────────────────────────────────────────────────────
+const API = {
+  async get(path) {
+    const res = await fetch('/api' + path);
+    if (!res.ok) { const t = await res.text(); throw new Error(t); }
+    return res.json();
+  },
+  async post(path, body) {
+    const res = await fetch('/api' + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const t = await res.text(); throw new Error(t); }
+    return res.json();
+  },
+  async put(path, body) {
+    const res = await fetch('/api' + path, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const t = await res.text(); throw new Error(t); }
+    return res.json();
+  },
+  async upload(path, file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api' + path, { method: 'POST', body: fd });
+    if (!res.ok) { const t = await res.text(); throw new Error(t); }
+    return res.json();
+  },
+};
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentFileId = null;
+let currentEfforts = [];
+let currentCharts = {};  // {elementId: Chart instance}
+let optimizerJobId = null;
+let optimizerPollTimer = null;
+
+function setStatus(msg) {
+  document.getElementById('statusText').textContent = msg;
+}
+
+async function refreshSession() {
+  try {
+    const s = await API.get('/session');
+    document.getElementById('sessionInfo').innerHTML =
+      s.has_profile
+        ? s.header.replace(/\|/g, '&mdash;')
+        : 'No profile loaded &mdash; <strong>' + s.track + '</strong>';
+  } catch (e) { /* ignore on static file open */ }
+}
+
+// ─── Tab Navigation ──────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    const tabId = item.dataset.tab;
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+
+    // Lazy-load data for certain tabs
+    if (tabId === 'track') { setTimeout(drawTrack, 50); updateTrackGeometryPanel(); }
+    if (tabId === 'state') loadStateTab();
+    if (tabId === 'config') loadConfigTab();
+    if (tabId === 'simulation' && profileGridData.length === 0) {
+      loadProfileGrid().catch(() => {/* no profile loaded yet */});
+    }
+    if (tabId === 'optimizer') {
+      loadOptimizerPowerCurve().catch(() => {/* server down */});
+    }
+    if (tabId === 'power') {
+      loadPowerGrid().catch(() => {/* server down */});
+    }
+  });
+});
+
+// ─── Toggle Groups ───────────────────────────────────────────────────────────
+document.querySelectorAll('.toggle-group').forEach(group => {
+  group.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+});
+
+// ─── Gear Ratio Calculator ───────────────────────────────────────────────────
+function updateGearRatio() {
+  const chainring = parseFloat(document.getElementById('chainring').value) || 55;
+  const cog = parseFloat(document.getElementById('cog').value) || 12;
+  document.getElementById('gearRatio').textContent = (chainring / cog).toFixed(3);
+}
+document.getElementById('chainring').addEventListener('input', updateGearRatio);
+document.getElementById('cog').addEventListener('input', updateGearRatio);
+
+// ─── Track Select ────────────────────────────────────────────────────────────
+async function updateTrackGeometryPanel() {
+  try {
+    const data = await API.get('/track/geometry');
+    document.getElementById('trackName').textContent = data.name || '—';
+    document.getElementById('trackLength').textContent = (data.length_m || 0).toFixed(2) + ' m';
+    document.getElementById('trackStraight').textContent = (data.straight_length_m || 0).toFixed(1) + ' m';
+    document.getElementById('trackRadius').textContent = (data.turn_radius_m || 0).toFixed(1) + ' m';
+    document.getElementById('trackBanking').textContent = (data.banking_turn_deg || 0).toFixed(1) + '°';
+    document.getElementById('trackWidth').textContent = (data.width_m || 0).toFixed(1) + ' m';
+    document.getElementById('trackAltitude').textContent = (data.altitude_m || 0) + ' m';
+  } catch (e) { /* ignore */ }
+}
+
+document.getElementById('trackSelect').addEventListener('change', async (e) => {
+  try {
+    await API.put('/session/track', { track: e.target.value });
+    refreshSession();
+    drawTrack();
+    updateTrackGeometryPanel();
+    setStatus('Track: ' + e.target.value);
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIT ANALYSIS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const dropZone = document.getElementById('fitDropZone');
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('active'); });
+dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('active'); });
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('active');
+  if (e.dataTransfer.files[0]) handleFileLoad(e.dataTransfer.files[0]);
+});
+dropZone.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.fit,.FIT';
+  input.onchange = (e) => { if (e.target.files[0]) handleFileLoad(e.target.files[0]); };
+  input.click();
+});
+
+async function handleFileLoad(file) {
+  setStatus('Uploading ' + file.name + '...');
+  try {
+    const data = await API.upload('/fit/upload', file);
+    currentFileId = data.file_id;
+
+    document.getElementById('fitFileInfo').style.display = 'block';
+    document.getElementById('fitFileName').textContent = data.filename;
+    document.getElementById('fitDuration').textContent = data.total_duration_s.toFixed(1) + 's';
+    document.getElementById('fitMaxPower').textContent = data.max_power_W.toFixed(0) + 'W';
+
+    setStatus('Loaded: ' + data.filename + ' — detecting efforts...');
+
+    // Auto-detect efforts
+    let effortData = await API.post('/fit/detect', { file_id: currentFileId });
+
+    // Fallback: if auto-detect finds nothing, try the peak finder
+    if (effortData.count === 0) {
+      setStatus('Auto-detect found nothing — trying power peak finder...');
+      effortData = await API.post('/fit/peaks', { file_id: currentFileId });
+    }
+
+    currentEfforts = effortData.efforts;
+    renderEffortList(currentEfforts);
+
+    const method = effortData.method === 'power_peaks' ? ' (via peak finder)' : '';
+    document.getElementById('effortCount').textContent = effortData.count + ' found' + method;
+    setStatus('Found ' + effortData.count + ' efforts' + method + ' in ' + data.filename);
+
+    // Auto-select first effort
+    if (currentEfforts.length > 0) selectEffort(0);
+
+  } catch (err) {
+    setStatus('Error: ' + err.message);
+  }
+}
+
+function renderEffortList(efforts) {
+  const container = document.getElementById('effortList');
+  if (efforts.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.82rem;">No efforts detected</div>';
+    return;
+  }
+
+  container.innerHTML = efforts.map((e, i) => {
+    const confClass = e.confidence >= 80 ? 'high' : e.confidence >= 60 ? 'medium' : 'low';
+    return `
+      <div class="effort-item" data-index="${i}" onclick="selectEffort(${i})">
+        <div class="effort-info">
+          <div class="effort-title">Effort ${i + 1}</div>
+          <div class="effort-meta">${e.duration_s.toFixed(0)}s | ${e.max_power_W.toFixed(0)}W peak | ${e.sprint_avg_power_W.toFixed(0)}W avg</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);">${e.confidence}%</span>
+          <div class="confidence-bar"><div class="fill ${confClass}" style="width:${e.confidence}%"></div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function selectEffort(index) {
+  document.querySelectorAll('.effort-item').forEach(el => el.classList.remove('selected'));
+  const el = document.querySelector(`.effort-item[data-index="${index}"]`);
+  if (el) el.classList.add('selected');
+
+  if (!currentFileId) return;
+
+  try {
+    const chartData = await API.post('/fit/effort-chart', { file_id: currentFileId, effort_index: index });
+    renderFitChart(chartData);
+  } catch (err) {
+    setStatus('Error loading chart: ' + err.message);
+  }
+}
+
+function renderFitChart(data) {
+  document.getElementById('fitChartPlaceholder').style.display = 'none';
+  const canvas = document.getElementById('fitChart');
+  canvas.style.display = 'block';
+
+  if (currentCharts.fitChart) currentCharts.fitChart.destroy();
+
+  currentCharts.fitChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: data.times.map(t => t.toFixed(1)),
+      datasets: [
+        {
+          label: 'Power (W)',
+          data: data.powers,
+          borderColor: '#34D399',
+          backgroundColor: 'rgba(52, 211, 153, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Speed (km/h)',
+          data: data.speeds,
+          borderColor: '#38BDF8',
+          backgroundColor: 'rgba(56, 189, 248, 0.05)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { labels: { color: '#8892A8', font: { family: 'Outfit', size: 11 } } },
+        annotation: data.sprint_start_offset ? {
+          annotations: {
+            sprintLine: {
+              type: 'line',
+              xMin: data.sprint_start_offset.toFixed(1),
+              xMax: data.sprint_start_offset.toFixed(1),
+              borderColor: 'rgba(244, 63, 94, 0.5)',
+              borderWidth: 1,
+              borderDash: [4, 3],
+              label: { content: 'Sprint', display: true, color: '#F43F5E', font: { size: 9 } },
+            },
+          },
+        } : {},
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Time (s)', color: '#525D78', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#525D78', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 12 },
+          grid: { color: 'rgba(30, 37, 54, 0.8)' },
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'Power (W)', color: '#34D399', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#34D399', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(30, 37, 54, 0.5)' },
+        },
+        y1: {
+          position: 'right',
+          title: { display: true, text: 'Speed (km/h)', color: '#38BDF8', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#38BDF8', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRACK VIEW — SVG-based (ported from track-builder.html)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Track presets (matching track-builder.html geometry)
+const TRACK_PRESETS = {
+  Bromont: {
+    LAP_LENGTH: 250, L_BLACK: 59.0, a_BLACK: 21.0, b_BLACK: 21.0,
+    W: 7.5, BLACK_LINE_POSITION: 0.2, RED_LINE_POSITION: 0.9, BLUE_LINE_POSITION: 3.0,
+    FINISH_LINE_DISTANCE: 42.0, SPRINT_DISTANCE: 200,
+  },
+  Milton: {
+    LAP_LENGTH: 250, L_BLACK: 41.0, a_BLACK: 26.7, b_BLACK: 26.7,
+    W: 7.0, BLACK_LINE_POSITION: 0.2, RED_LINE_POSITION: 0.9, BLUE_LINE_POSITION: 3.0,
+    FINISH_LINE_DISTANCE: 33.0, SPRINT_DISTANCE: 200,
+  },
+  Konya: {
+    LAP_LENGTH: 250, L_BLACK: 38.0, a_BLACK: 27.7, b_BLACK: 27.7,
+    W: 8.0, BLACK_LINE_POSITION: 0.2, RED_LINE_POSITION: 0.9, BLUE_LINE_POSITION: 3.0,
+    FINISH_LINE_DISTANCE: 31.5, SPRINT_DISTANCE: 200,
+  },
+};
+
+function linspace(start, end, n) {
+  const arr = new Float64Array(n);
+  if (n === 1) { arr[0] = start; return arr; }
+  const step = (end - start) / (n - 1);
+  for (let i = 0; i < n; i++) arr[i] = start + i * step;
+  return arr;
+}
+
+function ramanujanPerimeter(a, b) {
+  if (a + b === 0) return 0;
+  const h = ((a - b) / (a + b)) ** 2;
+  return Math.PI * (a + b) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h)));
+}
+
+function computeTrackGeometry(cfg) {
+  let L = cfg.L_BLACK;
+  let a = cfg.a_BLACK;
+  let b = cfg.b_BLACK;
+  const W = cfg.W;
+  const BLP = cfg.BLACK_LINE_POSITION;
+  const lapLength = cfg.LAP_LENGTH;
+
+  const rawPerimeter = 2 * L + ramanujanPerimeter(a, b);
+  let scaleFactor = 1.0;
+  if (lapLength > 0) {
+    scaleFactor = lapLength / rawPerimeter;
+    L *= scaleFactor; a *= scaleFactor; b *= scaleFactor;
+  }
+  const actualPerimeter = 2 * L + ramanujanPerimeter(a, b);
+
+  const N_STRAIGHT = 200, N_CURVE = 300;
+  const TOTAL = 2 * N_STRAIGHT + 2 * N_CURVE;
+
+  const x_black = new Float64Array(TOTAL);
+  const y_black = new Float64Array(TOTAL);
+
+  // Seg 1: Bottom straight
+  const s1x = linspace(0, L, N_STRAIGHT);
+  for (let i = 0; i < N_STRAIGHT; i++) { x_black[i] = s1x[i]; y_black[i] = -b; }
+
+  // Seg 2: Right curve
+  const theta2 = linspace(-Math.PI / 2, Math.PI / 2, N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    x_black[N_STRAIGHT + i] = L + a * Math.cos(theta2[i]);
+    y_black[N_STRAIGHT + i] = b * Math.sin(theta2[i]);
+  }
+
+  // Seg 3: Top straight
+  const s3x = linspace(L, 0, N_STRAIGHT);
+  for (let i = 0; i < N_STRAIGHT; i++) {
+    x_black[N_STRAIGHT + N_CURVE + i] = s3x[i];
+    y_black[N_STRAIGHT + N_CURVE + i] = b;
+  }
+
+  // Seg 4: Left curve
+  const theta4 = linspace(Math.PI / 2, 3 * Math.PI / 2, N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    x_black[N_STRAIGHT + N_CURVE + N_STRAIGHT + i] = a * Math.cos(theta4[i]);
+    y_black[N_STRAIGHT + N_CURVE + N_STRAIGHT + i] = b * Math.sin(theta4[i]);
+  }
+
+  // Center about x=0
+  const cx = L / 2;
+  for (let i = 0; i < TOTAL; i++) x_black[i] -= cx;
+
+  // Normal vectors
+  const nx = new Float64Array(TOTAL);
+  const ny = new Float64Array(TOTAL);
+  for (let i = 0; i < N_STRAIGHT; i++) { nx[i] = 0; ny[i] = -1; }
+  const rcx = L - cx;
+  for (let i = N_STRAIGHT; i < N_STRAIGHT + N_CURVE; i++) {
+    const dx = x_black[i] - rcx, dy = y_black[i];
+    const norm = Math.sqrt(dx * dx + dy * dy);
+    nx[i] = norm > 0 ? dx / norm : 0; ny[i] = norm > 0 ? dy / norm : 0;
+  }
+  for (let i = N_STRAIGHT + N_CURVE; i < N_STRAIGHT + N_CURVE + N_STRAIGHT; i++) { nx[i] = 0; ny[i] = 1; }
+  const lcx = -cx;
+  for (let i = N_STRAIGHT + N_CURVE + N_STRAIGHT; i < TOTAL; i++) {
+    const dx = x_black[i] - lcx, dy = y_black[i];
+    const norm = Math.sqrt(dx * dx + dy * dy);
+    nx[i] = norm > 0 ? dx / norm : 0; ny[i] = norm > 0 ? dy / norm : 0;
+  }
+
+  // Derived lines
+  const x_inner = new Float64Array(TOTAL), y_inner = new Float64Array(TOTAL);
+  const x_red = new Float64Array(TOTAL), y_red = new Float64Array(TOTAL);
+  const x_blue = new Float64Array(TOTAL), y_blue = new Float64Array(TOTAL);
+  const x_outer = new Float64Array(TOTAL), y_outer = new Float64Array(TOTAL);
+
+  for (let i = 0; i < TOTAL; i++) {
+    x_inner[i] = x_black[i] - nx[i] * BLP;
+    y_inner[i] = y_black[i] - ny[i] * BLP;
+    x_red[i] = x_black[i] + nx[i] * cfg.RED_LINE_POSITION;
+    y_red[i] = y_black[i] + ny[i] * cfg.RED_LINE_POSITION;
+    x_blue[i] = x_black[i] + nx[i] * cfg.BLUE_LINE_POSITION;
+    y_blue[i] = y_black[i] + ny[i] * cfg.BLUE_LINE_POSITION;
+    x_outer[i] = x_black[i] + nx[i] * W;
+    y_outer[i] = y_black[i] + ny[i] * W;
+  }
+
+  // Finish/start positioning
+  const finishDist = Math.max(0, Math.min(L - 0.01, cfg.FINISH_LINE_DISTANCE));
+  const finishProportion = L > 0 ? finishDist / L : 0;
+  const finish_idx = Math.min(Math.floor(finishProportion * N_STRAIGHT), N_STRAIGHT - 1);
+  const pointsPerMeter = TOTAL / actualPerimeter;
+  const sprintPoints = Math.round(cfg.SPRINT_DISTANCE * pointsPerMeter);
+  const start_idx = ((finish_idx - sprintPoints) % TOTAL + TOTAL) % TOTAL;
+
+  // Pursuit lines
+  const bottomPursuitIdx = Math.floor(N_STRAIGHT / 2);
+  const topPursuitIdx = N_STRAIGHT + N_CURVE + Math.floor(N_STRAIGHT / 2);
+
+  return {
+    x_black, y_black, nx, ny,
+    x_inner, y_inner, x_red, y_red, x_blue, y_blue, x_outer, y_outer,
+    finish_idx, start_idx, bottomPursuitIdx, topPursuitIdx,
+    TOTAL, N_STRAIGHT, N_CURVE,
+    L_actual: L, a_actual: a, b_actual: b,
+    actualPerimeter, cfg,
+  };
+}
+
+function polylinePoints(xs, ys, step = 2) {
+  const pts = [];
+  for (let i = 0; i < xs.length; i += step) pts.push(xs[i].toFixed(3) + ',' + (-ys[i]).toFixed(3));
+  const last = xs.length - 1;
+  if ((last % step) !== 0) pts.push(xs[last].toFixed(3) + ',' + (-ys[last]).toFixed(3));
+  return pts.join(' ');
+}
+
+function closedPolygonPoints(xs1, ys1, xs2, ys2, step = 3) {
+  const pts = [];
+  for (let i = 0; i < xs1.length; i += step) pts.push(xs1[i].toFixed(3) + ',' + (-ys1[i]).toFixed(3));
+  for (let i = xs2.length - 1; i >= 0; i -= step) pts.push(xs2[i].toFixed(3) + ',' + (-ys2[i]).toFixed(3));
+  return pts.join(' ');
+}
+
+async function drawTrack() {
+  const svg = document.getElementById('trackVizSvg');
+  if (!svg) return;
+
+  // Get current track key from the select
+  const trackKey = document.getElementById('trackSelect').value || 'Bromont';
+  let cfg = TRACK_PRESETS[trackKey];
+  if (!cfg) {
+    // Custom track — build preset from API geometry
+    try {
+      const data = await API.get('/track/geometry');
+      cfg = {
+        LAP_LENGTH: data.length_m || 250,
+        L_BLACK: data.straight_length_m || 50,
+        a_BLACK: data.turn_radius_m || 25,
+        b_BLACK: data.turn_radius_m || 25,
+        W: data.width_m || 7.0,
+        BLACK_LINE_POSITION: 0.2, RED_LINE_POSITION: 0.9, BLUE_LINE_POSITION: 3.0,
+        FINISH_LINE_DISTANCE: (data.straight_length_m || 50) * 0.7,
+        SPRINT_DISTANCE: 200,
+      };
+    } catch (e) { cfg = TRACK_PRESETS.Bromont; }
+  }
+  const g = computeTrackGeometry(cfg);
+
+  // Compute viewBox
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < g.TOTAL; i++) {
+    const ox = g.x_outer[i], oy = -g.y_outer[i];
+    const ix = g.x_inner[i], iy = -g.y_inner[i];
+    minX = Math.min(minX, ox, ix); maxX = Math.max(maxX, ox, ix);
+    minY = Math.min(minY, oy, iy); maxY = Math.max(maxY, oy, iy);
+  }
+  const pad = Math.max(maxX - minX, maxY - minY) * 0.08;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+
+  const parts = [];
+  const lw = g.L_actual * 0.008;
+  const mr = g.L_actual * 0.02;
+  const fontSize = g.L_actual * 0.04;
+
+  // 1. Track surface (wood color)
+  parts.push(`<polygon points="${closedPolygonPoints(g.x_black, g.y_black, g.x_outer, g.y_outer)}" fill="#ffe4c4" opacity="0.85" stroke="none"/>`);
+
+  // 2. Cote d'Azur (inner band)
+  parts.push(`<polygon points="${closedPolygonPoints(g.x_inner, g.y_inner, g.x_black, g.y_black)}" fill="#add8e6" opacity="0.7" stroke="none"/>`);
+
+  // 3. Infield
+  parts.push(`<polygon points="${polylinePoints(g.x_inner, g.y_inner, 3)}" fill="#add8e6" opacity="0.15" stroke="none"/>`);
+
+  // 4. Inner edge (dashed)
+  parts.push(`<polyline points="${polylinePoints(g.x_inner, g.y_inner, 2)}" fill="none" stroke="#0055cc" stroke-width="${g.L_actual * 0.004}" stroke-dasharray="${g.L_actual * 0.01},${g.L_actual * 0.01}" opacity="0.6"/>`);
+
+  // 5. Black line
+  parts.push(`<polyline points="${polylinePoints(g.x_black, g.y_black, 2)}" fill="none" stroke="#000000" stroke-width="${g.L_actual * 0.006}" stroke-linecap="round"/>`);
+
+  // 6. Red line
+  parts.push(`<polyline points="${polylinePoints(g.x_red, g.y_red, 2)}" fill="none" stroke="#cc0000" stroke-width="${g.L_actual * 0.005}" opacity="0.8"/>`);
+
+  // 7. Blue line
+  parts.push(`<polyline points="${polylinePoints(g.x_blue, g.y_blue, 2)}" fill="none" stroke="#0044cc" stroke-width="${g.L_actual * 0.005}" opacity="0.8"/>`);
+
+  // 8. Outer edge
+  parts.push(`<polyline points="${polylinePoints(g.x_outer, g.y_outer, 2)}" fill="none" stroke="#000000" stroke-width="${g.L_actual * 0.006}" stroke-linecap="round"/>`);
+
+  // Helper: cross-track line from inner to outer at index
+  function crossLine(idx, color, dash, width) {
+    const BLP = cfg.BLACK_LINE_POSITION, W = cfg.W;
+    const ix = g.x_black[idx] - g.nx[idx] * BLP;
+    const iy = -(g.y_black[idx] - g.ny[idx] * BLP);
+    const ox = g.x_black[idx] + g.nx[idx] * W;
+    const oy = -(g.y_black[idx] + g.ny[idx] * W);
+    const dashAttr = dash ? ` stroke-dasharray="${g.L_actual * 0.015},${g.L_actual * 0.01}"` : '';
+    return `<line x1="${ix.toFixed(3)}" y1="${iy.toFixed(3)}" x2="${ox.toFixed(3)}" y2="${oy.toFixed(3)}" stroke="${color}" stroke-width="${width || lw}"${dashAttr} stroke-linecap="round"/>`;
+  }
+
+  // 9. Pursuit lines
+  parts.push(crossLine(g.bottomPursuitIdx, '#cc0000', false, lw * 1.2));
+  parts.push(crossLine(g.topPursuitIdx, '#cc0000', false, lw * 1.2));
+
+  // 10. Finish line (solid black, thick)
+  parts.push(crossLine(g.finish_idx, '#000000', false, lw * 1.5));
+
+  // 11. Start line (dashed)
+  parts.push(crossLine(g.start_idx, '#000000', true, lw * 1.2));
+
+  // 12. Start marker (blue circle)
+  parts.push(`<circle cx="${g.x_black[g.start_idx].toFixed(3)}" cy="${(-g.y_black[g.start_idx]).toFixed(3)}" r="${mr}" fill="#3b82f6" stroke="#fff" stroke-width="${mr * 0.3}"/>`);
+
+  // 13. Finish marker (red circle)
+  parts.push(`<circle cx="${g.x_black[g.finish_idx].toFixed(3)}" cy="${(-g.y_black[g.finish_idx]).toFixed(3)}" r="${mr}" fill="#ef4444" stroke="#fff" stroke-width="${mr * 0.3}"/>`);
+
+  // 14. Pursuit markers
+  parts.push(`<circle cx="${g.x_black[g.bottomPursuitIdx].toFixed(3)}" cy="${(-g.y_black[g.bottomPursuitIdx]).toFixed(3)}" r="${mr * 0.5}" fill="#cc0000" stroke="#fff" stroke-width="${mr * 0.2}"/>`);
+  parts.push(`<circle cx="${g.x_black[g.topPursuitIdx].toFixed(3)}" cy="${(-g.y_black[g.topPursuitIdx]).toFixed(3)}" r="${mr * 0.5}" fill="#cc0000" stroke="#fff" stroke-width="${mr * 0.2}"/>`);
+
+  // 15. Segment labels
+  const labelColor = '#555';
+  const bsm = Math.floor(g.N_STRAIGHT / 2);
+  parts.push(`<text x="${g.x_black[bsm].toFixed(3)}" y="${(-g.y_black[bsm] - cfg.W - 2).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="middle" font-family="Outfit, sans-serif">Home Straight</text>`);
+  const tsm = g.N_STRAIGHT + g.N_CURVE + Math.floor(g.N_STRAIGHT / 2);
+  parts.push(`<text x="${g.x_black[tsm].toFixed(3)}" y="${(-g.y_black[tsm] + cfg.W + fontSize + 2).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="middle" font-family="Outfit, sans-serif">Back Straight</text>`);
+  const rcm = g.N_STRAIGHT + Math.floor(g.N_CURVE / 2);
+  parts.push(`<text x="${(g.x_black[rcm] + cfg.W + 3).toFixed(3)}" y="${(-g.y_black[rcm] + fontSize * 0.3).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="start" font-family="Outfit, sans-serif">Turn 1-2</text>`);
+  const lcc = g.N_STRAIGHT + g.N_CURVE + g.N_STRAIGHT + Math.floor(g.N_CURVE / 2);
+  parts.push(`<text x="${(g.x_black[lcc] - cfg.W - 3).toFixed(3)}" y="${(-g.y_black[lcc] + fontSize * 0.3).toFixed(3)}" font-size="${fontSize}" fill="${labelColor}" text-anchor="end" font-family="Outfit, sans-serif">Turn 3-4</text>`);
+
+  // Start/Finish labels
+  const slx = g.x_black[g.start_idx], sly = -g.y_black[g.start_idx];
+  parts.push(`<text x="${slx.toFixed(3)}" y="${(sly - mr * 1.5).toFixed(3)}" font-size="${fontSize * 0.75}" fill="#3b82f6" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="600">START</text>`);
+  const flx = g.x_black[g.finish_idx], fly = -g.y_black[g.finish_idx];
+  parts.push(`<text x="${flx.toFixed(3)}" y="${(fly - mr * 1.5).toFixed(3)}" font-size="${fontSize * 0.75}" fill="#ef4444" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="600">FINISH</text>`);
+
+  svg.innerHTML = parts.join('\n');
+}
+
+drawTrack();
+document.getElementById('trackSelect').addEventListener('change', () => setTimeout(drawTrack, 50));
+document.querySelector('[data-tab="track"]').addEventListener('click', () => setTimeout(drawTrack, 50));
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIMULATION TAB — Chart helper
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function renderSimChart(canvasParent, data, chartKey) {
+  // Find or create canvas
+  let canvas = canvasParent.querySelector('canvas');
+  const placeholder = canvasParent.querySelector('.chart-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
+
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvasParent.appendChild(canvas);
+  }
+
+  if (currentCharts[chartKey]) currentCharts[chartKey].destroy();
+
+  currentCharts[chartKey] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: data.series.s_m.map(s => s.toFixed(0)),
+      datasets: [
+        {
+          label: 'Speed (km/h)',
+          data: data.series.v_kph,
+          borderColor: '#38BDF8',
+          backgroundColor: 'rgba(56, 189, 248, 0.08)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Power (W)',
+          data: data.series.P_W,
+          borderColor: '#34D399',
+          tension: 0.2,
+          pointRadius: 0,
+          borderWidth: 1,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { labels: { color: '#8892A8', font: { family: 'Outfit', size: 11 } } },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Distance (m)', color: '#525D78', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#525D78', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 10 },
+          grid: { color: 'rgba(30, 37, 54, 0.5)' },
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'Speed (km/h)', color: '#38BDF8', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#38BDF8', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(30, 37, 54, 0.5)' },
+        },
+        y1: {
+          position: 'right',
+          title: { display: true, text: 'Power (W)', color: '#34D399', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#34D399', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function updateReadouts(container, summary) {
+  const readouts = container.querySelectorAll('.readout');
+  const values = [
+    summary.T_200 ? summary.T_200.toFixed(3) : '—',
+    summary.T_total ? summary.T_total.toFixed(3) : '—',
+    summary.v_200_entry_kph ? summary.v_200_entry_kph.toFixed(1) : '—',
+    summary.v_200_exit_kph ? summary.v_200_exit_kph.toFixed(1) : '—',
+    summary.T_sprint ? summary.T_sprint.toFixed(3) : '—',
+    summary.P_avg_sprint ? summary.P_avg_sprint.toFixed(0) : '—',
+  ];
+  readouts.forEach((r, i) => {
+    if (i < values.length) {
+      const valEl = r.querySelector('.readout-value');
+      const unitEl = valEl.querySelector('.unit');
+      const unit = unitEl ? unitEl.textContent : '';
+      valEl.innerHTML = values[i] + (unit ? '<span class="unit">' + unit + '</span>' : '');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadStateTab() {
+  try {
+    const state = await API.get('/session/state');
+    const panels = document.querySelectorAll('#tab-state .panel');
+
+    // Panel 0: Session Status
+    if (panels[0]) {
+      const kvs = panels[0].querySelectorAll('.kv-value');
+      if (kvs[0]) { kvs[0].textContent = state.profile ? state.profile.source : 'Not loaded'; kvs[0].className = 'kv-value ' + (state.profile ? 'success' : 'warning'); }
+      if (kvs[1]) { kvs[1].textContent = state.power_curves ? state.power_curves.source : 'Not loaded'; kvs[1].className = 'kv-value ' + (state.power_curves ? 'success' : 'warning'); }
+      if (kvs[2]) { kvs[2].textContent = state.track; kvs[2].className = 'kv-value success'; }
+      if (kvs[3]) {
+        const T = state.last_simulation ? state.last_simulation.T_200 : null;
+        kvs[3].textContent = (T != null && isFinite(T)) ? T.toFixed(3) + 's' : '—';
+      }
+    }
+
+    // Panel 1: Profile Summary
+    if (panels[1]) {
+      const kvs = panels[1].querySelectorAll('.kv-value');
+      const p = state.profile;
+      const fmtRange = (r, digits, unit) => {
+        if (!Array.isArray(r) || r[0] == null || r[1] == null) return '—';
+        return r[0].toFixed(digits) + ' – ' + r[1].toFixed(digits) + (unit ? ' ' + unit : '');
+      };
+      if (p) {
+        if (kvs[0]) kvs[0].textContent = p.source || '—';
+        if (kvs[1]) {
+          const span = (Array.isArray(p.s_range) && p.s_range[0] != null && p.s_range[1] != null)
+            ? (p.s_range[1] - p.s_range[0]).toFixed(1) + ' m' : '—';
+          kvs[1].textContent = span;
+        }
+        if (kvs[2]) kvs[2].textContent = p.point_count != null ? p.point_count : '—';
+        if (kvs[3]) kvs[3].textContent = fmtRange(p.power_range, 0, 'W');
+        if (kvs[4]) kvs[4].textContent = fmtRange(p.cda_range, 3, 'm²');
+      } else {
+        kvs.forEach(kv => { kv.textContent = '—'; });
+      }
+    }
+
+    // Panel 2: Last Simulation
+    if (panels[2]) {
+      const kvs = panels[2].querySelectorAll('.kv-value');
+      const ls = state.last_simulation;
+      const lp = state.last_simulation_params || {};
+      if (ls) {
+        const fmt = (v, digits, unit) =>
+          (v != null && isFinite(v)) ? v.toFixed(digits) + (unit ? ' ' + unit : '') : '—';
+        if (kvs[0]) kvs[0].textContent = fmt(ls.T_200, 3, 's');
+        if (kvs[1]) kvs[1].textContent = fmt(ls.T_total, 3, 's');
+        if (kvs[2]) kvs[2].textContent = fmt(lp.M, 1, 'kg');
+        if (kvs[3]) kvs[3].textContent = fmt(lp.rho, 4, 'kg/m³');
+        if (kvs[4]) kvs[4].textContent = fmt(lp.C_RR, 4);
+      } else {
+        kvs.forEach(kv => { kv.textContent = '—'; });
+      }
+    }
+
+    // Profile Data table
+    const profileTable = document.querySelector('#tab-state .data-table tbody');
+    if (profileTable) {
+      if (state.profile) {
+        try {
+          const grid = await API.get('/profile/grid');
+          const rows = grid.rows || [];
+          if (rows.length === 0) {
+            profileTable.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No profile rows</td></tr>';
+          } else {
+            profileTable.innerHTML = rows.map(r => {
+              const seg = r.segment_name || lapSectionLabel(r.s_m);
+              return '<tr>' +
+                '<td class="num">' + r.s_m + '</td>' +
+                '<td class="num">' + (r.y_m != null ? r.y_m.toFixed(2) : '—') + '</td>' +
+                '<td class="num">' + (r.CdA != null ? r.CdA.toFixed(3) : '—') + '</td>' +
+                '<td class="num">' + (r.P_W != null ? r.P_W.toFixed(0) : '—') + '</td>' +
+                '<td>' + seg + '</td>' +
+                '</tr>';
+            }).join('');
+          }
+        } catch (err) {
+          profileTable.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">Failed to load profile grid</td></tr>';
+        }
+      } else {
+        profileTable.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No profile loaded</td></tr>';
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// Client-side mirror of lap_section_label() for when profile rows don't carry segment_name
+function lapSectionLabel(s_m) {
+  const LAP_LEN = 250.0, LAP0_OFFSET = 150.0;
+  const sections = [
+    ['HomeStraight', 60.0], ['Turn1', 32.5], ['Turn2', 32.5],
+    ['BackStraight', 60.0], ['Turn3', 32.5], ['Turn4', 32.5],
+  ];
+  const s_global = s_m + LAP0_OFFSET;
+  const lap_idx = Math.floor(s_global / LAP_LEN);
+  const s_in_lap = s_global - lap_idx * LAP_LEN;
+  let acc = 0.0;
+  for (const [name, length] of sections) {
+    if (s_in_lap < acc + length) {
+      let q = Math.floor(((s_in_lap - acc) / length) * 4) + 1;
+      q = Math.max(1, Math.min(4, q));
+      return 'Lap' + lap_idx + '_' + name + '_' + q + 'of4';
+    }
+    acc += length;
+  }
+  return 'Lap' + lap_idx + '_End';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONFIG TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadConfigTab() {
+  try {
+    const config = await API.get('/config');
+    const env = config.environment || {};
+    const aero = config.aero || {};
+    const sim = config.simulation || {};
+
+    document.getElementById('cfgRho').value = env.rho_kg_m3 || 1.165;
+    document.getElementById('cfgCrr').value = env.c_rr || 0.002;
+    document.getElementById('cfgEff').value = env.drivetrain_eff || 0.98;
+    document.getElementById('cfgMass').value = env.rider_mass_kg || 92.0;
+
+    document.getElementById('cfgCdaSeated').value = aero.CdA_seated || 0.24;
+    document.getElementById('cfgCdaStanding').value = aero.CdA_standing || 0.38;
+    document.getElementById('cfgBendFactor').value = aero.CdA_bend_factor || 0.97;
+
+    document.getElementById('cfgDs').value = sim.ds_m || 0.25;
+    document.getElementById('cfgV0').value = sim.v0_m_s || 5.0;
+    document.getElementById('cfgSTotal').value = sim.s_total_m || 895;
+  } catch (e) { /* ignore */ }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIT TAB — Action Buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btnFindPeaks').addEventListener('click', async () => {
+  if (!currentFileId) { setStatus('Load a FIT file first'); return; }
+  setStatus('Finding power peaks...');
+  try {
+    const effortData = await API.post('/fit/peaks', { file_id: currentFileId });
+    currentEfforts = effortData.efforts;
+    renderEffortList(currentEfforts);
+    document.getElementById('effortCount').textContent = effortData.count + ' found (peaks)';
+    setStatus('Peak finder: ' + effortData.count + ' efforts found');
+    if (currentEfforts.length > 0) selectEffort(0);
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+document.getElementById('btnCreateManual').addEventListener('click', async () => {
+  const finalRow = parseInt(document.getElementById('finalRow').value);
+  if (!currentFileId || isNaN(finalRow)) {
+    setStatus('Load a FIT file and enter a final row number');
+    return;
+  }
+  setStatus('Creating manual effort...');
+  try {
+    const effort = await API.post('/fit/manual-effort', {
+      file_id: currentFileId,
+      final_row: finalRow,
+    });
+    currentEfforts.push(effort);
+    renderEffortList(currentEfforts);
+    selectEffort(currentEfforts.length - 1);
+    setStatus('Manual effort created: Effort ' + currentEfforts.length);
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+let lastDistanceProfile = null;
+
+document.getElementById('btnConvertDistance').addEventListener('click', async () => {
+  if (!currentFileId || currentEfforts.length === 0) {
+    setStatus('No effort selected');
+    return;
+  }
+  const selected = document.querySelector('.effort-item.selected');
+  const effortIdx = selected ? parseInt(selected.dataset.index) : 0;
+  const chainring = parseInt(document.getElementById('chainring').value) || 55;
+  const cog = parseInt(document.getElementById('cog').value) || 14;
+
+  setStatus('Converting to distance profile...');
+  try {
+    const profile = await API.post('/fit/convert', {
+      file_id: currentFileId,
+      effort_index: effortIdx,
+      chainring: chainring,
+      cog: cog,
+    });
+    lastDistanceProfile = profile;
+    renderDistanceChart(profile);
+    setStatus(`Converted: ${profile.total_distance_m.toFixed(0)}m, ${profile.total_time_s.toFixed(1)}s`);
+    // Activate the Distance toggle
+    document.getElementById('fitToggleTime').classList.remove('active');
+    document.getElementById('fitToggleDistance').classList.add('active');
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+function renderDistanceChart(profile) {
+  document.getElementById('fitChartPlaceholder').style.display = 'none';
+  const canvas = document.getElementById('fitChart');
+  canvas.style.display = 'block';
+
+  if (currentCharts.fitChart) currentCharts.fitChart.destroy();
+
+  // Downsample labels to avoid overcrowding (show every Nth)
+  const labels = profile.s_m.map(s => s.toFixed(0));
+
+  currentCharts.fitChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Power (W)',
+          data: profile.power_W,
+          borderColor: '#34D399',
+          backgroundColor: 'rgba(52, 211, 153, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Speed (km/h)',
+          data: profile.speed_kph,
+          borderColor: '#38BDF8',
+          backgroundColor: 'rgba(56, 189, 248, 0.05)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { labels: { color: '#8892A8', font: { family: 'Outfit', size: 11 } } },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Distance (m)', color: '#525D78', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#525D78', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 12 },
+          grid: { color: 'rgba(30, 37, 54, 0.8)' },
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'Power (W)', color: '#34D399', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#34D399', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(30, 37, 54, 0.5)' },
+        },
+        y1: {
+          position: 'right',
+          title: { display: true, text: 'Speed (km/h)', color: '#38BDF8', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#38BDF8', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+// Time / Distance toggle
+document.getElementById('fitToggleTime').addEventListener('click', async () => {
+  document.getElementById('fitToggleTime').classList.add('active');
+  document.getElementById('fitToggleDistance').classList.remove('active');
+  const selected = document.querySelector('.effort-item.selected');
+  if (selected && currentFileId) {
+    try {
+      const chartData = await API.post('/fit/effort-chart', { file_id: currentFileId, effort_index: parseInt(selected.dataset.index) });
+      renderFitChart(chartData);
+    } catch (err) { setStatus('Error: ' + err.message); }
+  }
+});
+
+document.getElementById('fitToggleDistance').addEventListener('click', () => {
+  if (!lastDistanceProfile) {
+    setStatus('Convert to distance profile first');
+    return;
+  }
+  document.getElementById('fitToggleDistance').classList.add('active');
+  document.getElementById('fitToggleTime').classList.remove('active');
+  renderDistanceChart(lastDistanceProfile);
+});
+
+document.getElementById('btnExportCsv').addEventListener('click', async () => {
+  if (!currentFileId) { setStatus('No FIT data loaded'); return; }
+  setStatus('Exporting CSV...');
+  try {
+    const res = await fetch('/api/fit/export-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: currentFileId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'profile_f200.csv'; a.click();
+    URL.revokeObjectURL(url);
+    setStatus('CSV exported');
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+document.getElementById('btnExportSession').addEventListener('click', async () => {
+  if (!currentFileId) { setStatus('No FIT data loaded'); return; }
+  setStatus('Exporting to session...');
+  try {
+    const result = await API.post('/fit/export-session', { file_id: currentFileId });
+    setStatus('Profile loaded: ' + result.source + ' (' + result.points + ' pts)');
+    refreshSession();
+    document.getElementById('sim1Source').textContent = result.source;
+    document.getElementById('sim1Source').className = 'tag tag-success';
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROFILE GRID EDITOR
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let profileGridData = []; // Array of {s_m, P_W, y_m, CdA}
+
+async function loadProfileGrid() {
+  try {
+    const data = await API.get('/profile/grid');
+    profileGridData = data.rows;
+    renderProfileGrid();
+    setStatus('Profile grid loaded: ' + profileGridData.length + ' points');
+  } catch (err) { setStatus('Error loading profile grid: ' + err.message); }
+}
+
+function renderProfileGrid() {
+  const tbody = document.querySelector('#profileGrid tbody');
+  tbody.innerHTML = profileGridData.map((r, i) => `
+    <tr>
+      <td class="mono-value" style="font-size:0.72rem; color:var(--text-muted);">${r.s_m}</td>
+      <td><input type="number" class="grid-input" data-row="${i}" data-col="P_W" value="${r.P_W}" step="1"></td>
+      <td><input type="number" class="grid-input" data-row="${i}" data-col="y_m" value="${r.y_m}" step="0.01"></td>
+      <td><input type="number" class="grid-input" data-row="${i}" data-col="CdA" value="${r.CdA}" step="0.001"></td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('.grid-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const row = parseInt(e.target.dataset.row);
+      const col = e.target.dataset.col;
+      profileGridData[row][col] = parseFloat(e.target.value);
+    });
+  });
+}
+
+document.getElementById('btnLoadGrid').addEventListener('click', loadProfileGrid);
+
+document.getElementById('btnApplyRange').addEventListener('click', () => {
+  const from = parseFloat(document.getElementById('rangeFrom').value);
+  const to = parseFloat(document.getElementById('rangeTo').value);
+  const op = document.getElementById('rangeOp').value;
+  const val = parseFloat(document.getElementById('rangeVal').value);
+  if (isNaN(from) || isNaN(to) || isNaN(val)) { setStatus('Fill in From, To, and Value'); return; }
+
+  let count = 0;
+  profileGridData.forEach(r => {
+    if (r.s_m >= from && r.s_m <= to) {
+      if (op === 'add_P') r.P_W = Math.round((r.P_W + val) * 10) / 10;
+      else if (op === 'mul_P') r.P_W = Math.round(r.P_W * val * 10) / 10;
+      else if (op === 'set_P') r.P_W = val;
+      else if (op === 'add_y') r.y_m = Math.round((r.y_m + val) * 100) / 100;
+      else if (op === 'set_y') r.y_m = val;
+      else if (op === 'set_CdA') r.CdA = val;
+      count++;
+    }
+  });
+  renderProfileGrid();
+  setStatus('Range modifier applied to ' + count + ' points');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIMULATION TAB — Buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let sim1Data = null;
+let sim2Data = null;
+
+document.getElementById('btnLoadCsv1').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv';
+  input.onchange = async (e) => {
+    if (!e.target.files[0]) return;
+    setStatus('Loading CSV profile...');
+    try {
+      const data = await API.upload('/profile/load-csv', e.target.files[0]);
+      setStatus('Profile loaded: ' + data.source + ' (' + data.points + ' pts)');
+      refreshSession();
+      document.getElementById('sim1Source').textContent = data.source;
+      document.getElementById('sim1Source').className = 'tag tag-success';
+    } catch (err) { setStatus('Error: ' + err.message); }
+  };
+  input.click();
+});
+
+document.getElementById('btnRunSim1').addEventListener('click', async () => {
+  const params = {
+    mass_kg: parseFloat(document.getElementById('sim1Mass').value),
+    rho_kg_m3: parseFloat(document.getElementById('sim1Rho').value),
+    c_rr: parseFloat(document.getElementById('sim1Crr').value),
+    v0_m_s: parseFloat(document.getElementById('sim1V0').value),
+    ds_m: parseFloat(document.getElementById('sim1Ds').value),
+    drivetrain_efficiency: parseFloat(document.getElementById('sim1Eff').value),
+  };
+  console.log('[sim1] sending params:', params);
+  setStatus('Running Sim 1 (M=' + params.mass_kg + ' rho=' + params.rho_kg_m3 + ' v0=' + params.v0_m_s + ')...');
+  try {
+    const data = await API.post('/simulation/run', params);
+    console.log('[sim1] backend returned T_200=', data.summary.T_200, 'T_total=', data.summary.T_total);
+    sim1Data = data;
+    updateReadouts(document.getElementById('sim1Results'), data.summary);
+    renderSimChart(document.getElementById('sim1ChartContainer'), data, 'sim1Chart');
+    setStatus('Sim 1: T200 = ' + data.summary.T_200.toFixed(3) + 's, T_total = ' + data.summary.T_total.toFixed(3) + 's');
+    if (sim2Data) updateDelta();
+  } catch (err) {
+    console.error('[sim1] FAILED:', err);
+    setStatus('Sim 1 ERROR: ' + err.message);
+  }
+});
+
+document.getElementById('btnRunSim2').addEventListener('click', async () => {
+  setStatus('Running Simulation 2...');
+  try {
+    const params = {
+      mass_kg: parseFloat(document.getElementById('sim2Mass').value) || parseFloat(document.getElementById('sim1Mass').value),
+      rho_kg_m3: parseFloat(document.getElementById('sim2Rho').value) || parseFloat(document.getElementById('sim1Rho').value),
+      c_rr: parseFloat(document.getElementById('sim2Crr').value) || parseFloat(document.getElementById('sim1Crr').value),
+      v0_m_s: parseFloat(document.getElementById('sim2V0').value) || parseFloat(document.getElementById('sim1V0').value),
+      ds_m: parseFloat(document.getElementById('sim1Ds').value),
+      drivetrain_efficiency: parseFloat(document.getElementById('sim1Eff').value),
+    };
+
+    let data;
+    if (profileGridData.length > 0) {
+      // Use modified profile grid
+      params.profile_rows = profileGridData;
+      data = await API.post('/simulation/run-modified', params);
+    } else {
+      data = await API.post('/simulation/run', params);
+    }
+    sim2Data = data;
+
+    // Update readouts
+    const sim2Container = document.getElementById('sim2Results');
+    const readouts = sim2Container.querySelectorAll('.readout');
+    const vals = [
+      data.summary.T_200 ? data.summary.T_200.toFixed(3) : '—',
+      data.summary.T_total ? data.summary.T_total.toFixed(3) : '—',
+      data.summary.v_200_entry_kph ? data.summary.v_200_entry_kph.toFixed(1) : '—',
+      data.summary.v_200_exit_kph ? data.summary.v_200_exit_kph.toFixed(1) : '—',
+    ];
+    readouts.forEach((r, i) => {
+      if (i < vals.length) {
+        const valEl = r.querySelector('.readout-value');
+        const unitEl = valEl ? valEl.querySelector('.unit') : null;
+        const unit = unitEl ? unitEl.textContent : '';
+        if (valEl) valEl.innerHTML = vals[i] + (unit ? '<span class="unit">' + unit + '</span>' : '');
+      }
+    });
+
+    renderSimChart(document.getElementById('sim2ChartContainer'), data, 'sim2Chart');
+    setStatus('Sim 2: T200 = ' + data.summary.T_200.toFixed(3) + 's');
+    if (sim1Data) updateDelta();
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+function updateDelta() {
+  if (!sim1Data || !sim2Data) return;
+  const s1 = sim1Data.summary;
+  const s2 = sim2Data.summary;
+
+  const container = document.getElementById('deltaResults');
+  const readouts = container.querySelectorAll('.readout');
+
+  const t200Delta = s2.T_200 - s1.T_200;
+  const totalDelta = s2.T_total - s1.T_total;
+  const entryDelta = s2.v_200_entry_kph - s1.v_200_entry_kph;
+  const exitDelta = s2.v_200_exit_kph - s1.v_200_exit_kph;
+
+  function formatDelta(val, unit, decimals, invertColor) {
+    const sign = val > 0 ? '+' : '';
+    const color = invertColor
+      ? (val < 0 ? 'var(--color-delta-pos)' : val > 0 ? 'var(--color-delta-neg)' : 'var(--text-primary)')
+      : (val > 0 ? 'var(--color-delta-pos)' : val < 0 ? 'var(--color-delta-neg)' : 'var(--text-primary)');
+    return `<span style="color:${color}">${sign}${val.toFixed(decimals)}</span><span class="unit">${unit}</span>`;
+  }
+
+  // T200 delta (negative is good → invert)
+  if (readouts[0]) readouts[0].querySelector('.readout-value').innerHTML = formatDelta(t200Delta, 's', 3, true);
+  if (readouts[1]) readouts[1].querySelector('.readout-value').innerHTML = formatDelta(totalDelta, 's', 3, true);
+  if (readouts[2]) readouts[2].querySelector('.readout-value').innerHTML = formatDelta(entryDelta, 'km/h', 1, false);
+  if (readouts[3]) readouts[3].querySelector('.readout-value').innerHTML = formatDelta(exitDelta, 'km/h', 1, false);
+
+  // Update param diffs
+  const diffs = document.getElementById('deltaDiffs');
+  const kvValues = diffs.querySelectorAll('.kv-value');
+  const sim2Mass = parseFloat(document.getElementById('sim2Mass').value);
+  const sim2Rho = parseFloat(document.getElementById('sim2Rho').value);
+  const sim2Crr = parseFloat(document.getElementById('sim2Crr').value);
+  const gridModified = profileGridData.length > 0;
+
+  if (kvValues[0]) kvValues[0].textContent = isNaN(sim2Mass) ? 'same' : sim2Mass.toFixed(1) + ' kg';
+  if (kvValues[1]) kvValues[1].textContent = isNaN(sim2Rho) ? 'same' : sim2Rho.toFixed(3) + ' kg/m³';
+  if (kvValues[2]) kvValues[2].textContent = isNaN(sim2Crr) ? 'same' : sim2Crr;
+  if (kvValues[3]) kvValues[3].textContent = gridModified ? 'custom profile' : 'same';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POWER CURVES TAB — Buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function renderPowerCurveChart() {
+  const seatedInputs = document.querySelectorAll('.pg-input.seated');
+  const standingInputs = document.querySelectorAll('.pg-input.standing');
+  const durationLabels = document.querySelectorAll('.pg-cell.pg-duration');
+
+  const durations = [];
+  const seated = [];
+  const standing = [];
+
+  durationLabels.forEach((label, i) => {
+    const d = parseInt(label.textContent);
+    const sVal = seatedInputs[i] ? parseFloat(seatedInputs[i].value) : NaN;
+    const stVal = standingInputs[i] ? parseFloat(standingInputs[i].value) : NaN;
+
+    if (!isNaN(sVal) || !isNaN(stVal)) {
+      durations.push(d);
+      seated.push(isNaN(sVal) ? null : sVal);
+      standing.push(isNaN(stVal) ? null : stVal);
+    }
+  });
+
+  if (durations.length === 0) return;
+
+  const container = document.getElementById('pcChartContainer');
+  const placeholder = document.getElementById('pcChartPlaceholder');
+  if (placeholder) placeholder.style.display = 'none';
+
+  let canvas = container.querySelector('canvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+  }
+
+  if (currentCharts['pcChart']) currentCharts['pcChart'].destroy();
+
+  const datasets = [];
+  if (seated.some(v => v !== null)) {
+    datasets.push({
+      label: 'Seated',
+      data: seated,
+      borderColor: '#818CF8',
+      backgroundColor: 'rgba(129, 140, 248, 0.08)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3,
+      pointBackgroundColor: '#818CF8',
+      borderWidth: 1.5,
+    });
+  }
+  if (standing.some(v => v !== null)) {
+    datasets.push({
+      label: 'Standing',
+      data: standing,
+      borderColor: '#F43F5E',
+      backgroundColor: 'rgba(244, 63, 94, 0.08)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3,
+      pointBackgroundColor: '#F43F5E',
+      borderWidth: 1.5,
+    });
+  }
+
+  currentCharts['pcChart'] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: durations.map(d => d + 's'),
+      datasets: datasets,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { labels: { color: '#8892A8', font: { family: 'Outfit', size: 11 } } },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Duration', color: '#525D78', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#525D78', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(30, 37, 54, 0.5)' },
+        },
+        y: {
+          title: { display: true, text: 'Power (W)', color: '#8892A8', font: { family: 'JetBrains Mono', size: 10 } },
+          ticks: { color: '#8892A8', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(30, 37, 54, 0.5)' },
+        },
+      },
+    },
+  });
+}
+
+// Read durations directly from the DOM so they stay in sync with the HTML grid.
+function getPowerGridDurations() {
+  return Array.from(document.querySelectorAll('.power-grid .pg-duration'))
+    .map(el => parseInt(el.textContent, 10))
+    .filter(n => !isNaN(n));
+}
+
+// Populate the Power tab grid from /api/power-curves (session → config → builtin).
+async function loadPowerGrid() {
+  try {
+    const pc = await API.get('/power-curves');
+    const seatedInputs = document.querySelectorAll('.pg-input.seated');
+    const standingInputs = document.querySelectorAll('.pg-input.standing');
+    const durations = getPowerGridDurations();
+    const seat = pc.seated || {};
+    const stand = pc.standing || {};
+    durations.forEach((d, i) => {
+      const sv  = seat[d]  ?? seat[String(d)];
+      const stv = stand[d] ?? stand[String(d)];
+      if (seatedInputs[i]   && sv  != null) seatedInputs[i].value   = Math.round(sv);
+      if (standingInputs[i] && stv != null) standingInputs[i].value = Math.round(stv);
+    });
+    renderPowerCurveChart();
+  } catch (err) { /* server down or no data — leave placeholders */ }
+}
+
+document.getElementById('btnPcImportFit').addEventListener('click', async () => {
+  if (!currentFileId) { setStatus('Upload a FIT file first (FIT Analysis tab)'); return; }
+  setStatus('Extracting power curve from FIT...');
+  try {
+    const data = await API.post('/fit/power-curve', { file_id: currentFileId });
+    const pc = data.power_curve || {};
+
+    const seatedInputs = document.querySelectorAll('.pg-input.seated');
+    const durations = getPowerGridDurations();
+    durations.forEach((d, i) => {
+      if (seatedInputs[i] && pc[d] != null) seatedInputs[i].value = Math.round(pc[d]);
+    });
+
+    setStatus('Power curve imported from FIT');
+    renderPowerCurveChart();
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+document.getElementById('btnPcExportSession').addEventListener('click', async () => {
+  const seatedInputs = document.querySelectorAll('.pg-input.seated');
+  const standingInputs = document.querySelectorAll('.pg-input.standing');
+
+  const durations = getPowerGridDurations();
+  const seated = {};
+  const standing = {};
+
+  durations.forEach((d, i) => {
+    const sv = parseFloat(seatedInputs[i] ? seatedInputs[i].value : '');
+    const stv = parseFloat(standingInputs[i] ? standingInputs[i].value : '');
+    if (!isNaN(sv)) seated[d] = sv;
+    if (!isNaN(stv)) standing[d] = stv;
+  });
+
+  if (Object.keys(seated).length === 0 && Object.keys(standing).length === 0) {
+    setStatus('Enter power values first');
+    return;
+  }
+
+  setStatus('Saving power curves...');
+  try {
+    await API.put('/power-curves', { seated, standing, source: 'manual entry' });
+    setStatus('Power curves saved to session');
+    renderPowerCurveChart();
+    refreshSession();
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+// Auto-render power curve chart when values change
+document.querySelectorAll('.pg-input').forEach(input => {
+  input.addEventListener('change', renderPowerCurveChart);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CALIBRATION TAB — Buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let calGranularity = '50m';
+
+document.getElementById('calGranularity').addEventListener('click', (e) => {
+  const btn = e.target.closest('.toggle-btn');
+  if (!btn) return;
+  calGranularity = btn.textContent.trim();
+  rebuildCalTable();
+});
+
+function rebuildCalTable() {
+  const container = document.getElementById('calTableContainer');
+  const granMap = { '10m': 10, '50m': 50, '100m': 100, '200m': 200 };
+  const step = granMap[calGranularity] || 50;
+  const count = 200 / step;
+
+  let html = '<div class="cal-table">';
+  html += '<div class="cal-header">Segment</div><div class="cal-header">Model (s)</div>';
+  html += '<div class="cal-header">Actual (s)</div><div class="cal-header">Delta (s)</div>';
+  html += '<div class="cal-header">Implied CdA</div>';
+
+  for (let i = 0; i < count; i++) {
+    const start = i * step;
+    const end = (i + 1) * step;
+    html += `<div class="cal-cell">${start}–${end}m</div>`;
+    html += `<div class="cal-cell cal-model" data-seg="${start}-${end}m">—</div>`;
+    html += `<div class="cal-cell"><input type="text" class="cal-input" data-seg="${start}-${end}m" placeholder="enter"></div>`;
+    html += `<div class="cal-cell cal-delta" data-seg="${start}-${end}m">—</div>`;
+    html += `<div class="cal-cell cal-cda" data-seg="${start}-${end}m">—</div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+document.getElementById('btnCalRecalculate').addEventListener('click', async () => {
+  setStatus('Recalculating calibration...');
+
+  // Gather actual times from inputs
+  const inputs = document.querySelectorAll('.cal-input');
+  const actualTimes = {};
+  inputs.forEach(inp => {
+    const seg = inp.dataset.seg;
+    const val = parseFloat(inp.value);
+    if (seg && !isNaN(val)) actualTimes[seg] = val;
+  });
+
+  try {
+    const data = await API.post('/calibration/compute', {
+      granularity: calGranularity,
+      actual_times: actualTimes,
+    });
+
+    // Populate results
+    data.segments.forEach(seg => {
+      const modelEl = document.querySelector(`.cal-model[data-seg="${seg.name}"]`);
+      const deltaEl = document.querySelector(`.cal-delta[data-seg="${seg.name}"]`);
+      const cdaEl = document.querySelector(`.cal-cda[data-seg="${seg.name}"]`);
+
+      if (modelEl) modelEl.textContent = seg.model_time_s.toFixed(3);
+      if (deltaEl && seg.delta_s !== undefined) {
+        deltaEl.textContent = (seg.delta_s >= 0 ? '+' : '') + seg.delta_s.toFixed(3);
+        deltaEl.style.color = seg.delta_s > 0.01 ? 'var(--color-delta-neg)' : seg.delta_s < -0.01 ? 'var(--color-delta-pos)' : '';
+      }
+      if (cdaEl && seg.implied_cda !== undefined && seg.implied_cda !== null) {
+        cdaEl.textContent = seg.implied_cda.toFixed(4);
+      }
+    });
+
+    // Total delta
+    const footer = document.querySelector('#tab-calibration .panel-footer .readout-value');
+    if (footer && data.total_delta_s !== null) {
+      const sign = data.total_delta_s >= 0 ? '+' : '';
+      footer.innerHTML = sign + data.total_delta_s.toFixed(3) + '<span class="unit">s</span>';
+    }
+
+    setStatus('Calibration updated');
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPTIMIZER TAB — Buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Populate the "Power Curve" indicator from /api/power-curves so the user can
+// see which constraint the optimizer is enforcing (session / config / builtin).
+async function loadOptimizerPowerCurve() {
+  const srcEl = document.getElementById('optPowerCurveSrc');
+  const sumEl = document.getElementById('optPowerCurveSummary');
+  try {
+    const pc = await API.get('/power-curves');
+    const src = pc.source || 'unknown';
+    srcEl.textContent = src;
+    // Badge color hints source priority: session (best) → config → builtin
+    srcEl.style.color =
+      src.includes('builtin') ? 'var(--text-muted)' :
+      src.includes('config')  ? 'var(--accent-amber)' :
+                                'var(--accent-green, #34D399)';
+    const pick = (curve, d) => {
+      if (!curve) return '—';
+      const v = curve[d] ?? curve[String(d)];
+      return v != null ? Math.round(v) + 'W' : '—';
+    };
+    const seat = pc.seated || {};
+    const stand = pc.standing || {};
+    sumEl.innerHTML = [
+      `<span style="color:var(--text-label);">Seated</span>&nbsp;&nbsp;`,
+      `1s ${pick(seat,1)} · 5s ${pick(seat,5)} · 15s ${pick(seat,15)} · 30s ${pick(seat,30)} · 60s ${pick(seat,60)}`,
+      `<br><span style="color:var(--text-label);">Stand.</span>&nbsp;&nbsp;`,
+      `1s ${pick(stand,1)} · 5s ${pick(stand,5)} · 15s ${pick(stand,15)} · 30s ${pick(stand,30)} · 60s ${pick(stand,60)}`,
+    ].join('');
+  } catch (e) {
+    srcEl.textContent = 'error';
+    sumEl.textContent = 'Could not load power curve: ' + (e.message || e);
+  }
+}
+
+document.getElementById('btnRunOptimizer').addEventListener('click', async () => {
+  const btn = document.getElementById('btnRunOptimizer');
+
+  // If already running, stop it
+  if (optimizerJobId) {
+    try {
+      await API.post('/optimizer/stop/' + optimizerJobId);
+      setStatus('Stopping optimizer...');
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> Run Optimizer';
+    } catch (err) { setStatus('Error: ' + err.message); }
+    return;
+  }
+
+  const energy = parseFloat(document.getElementById('optEnergy').value) * 1000; // kJ → J
+  const iterations = parseInt(document.getElementById('optIterations').value) || 100;
+  const method = document.getElementById('optMethod').value;
+  const segmentM = parseFloat(document.getElementById('optSegmentM').value) || 15;
+
+  const mode = method.includes('Redistribution') ? 'power_redistribution' : 'energy_budget';
+
+  setStatus('Starting optimizer...');
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg> Stop';
+
+  try {
+    const res = await API.post('/optimizer/start', {
+      mode: mode,
+      n_samples: iterations,
+      energy_budget_J: energy,
+      segment_length_m: segmentM,
+    });
+    optimizerJobId = res.job_id;
+
+    // Start polling
+    optimizerPollTimer = setInterval(async () => {
+      try {
+        const status = await API.get('/optimizer/status/' + optimizerJobId);
+
+        // Update progress
+        const pct = status.total > 0 ? (status.progress / status.total * 100) : 0;
+        document.getElementById('optProgressFill').style.width = pct + '%';
+        document.getElementById('optIterationText').textContent = `Iteration: ${status.progress} / ${status.total}`;
+        document.getElementById('optBestText').textContent = status.best_time ? `Best: ${status.best_time.toFixed(3)}s` : 'Best: —';
+
+        if (status.status === 'completed' || status.status === 'error') {
+          clearInterval(optimizerPollTimer);
+          optimizerPollTimer = null;
+          optimizerJobId = null;
+          btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> Run Optimizer';
+
+          if (status.status === 'error') {
+            setStatus('Optimizer error: ' + status.error);
+            return;
+          }
+
+          if (status.result) {
+            const r = status.result;
+            const impEl = document.getElementById('optImprovement');
+            const impCard = document.getElementById('optImprovementCard');
+
+            // Surface optimizer failure (no valid samples found) as a visible
+            // error instead of silently leaving stale values. success=false
+            // means the search never landed a feasible adjustment vector.
+            if (r.success === false) {
+              document.getElementById('optT200').innerHTML = '—<span class="unit">s</span>';
+              impEl.innerHTML = '—<span class="unit">s</span>';
+              impCard.className = 'readout';
+              const rejected = r.rejected_samples ?? 0;
+              const valid = r.valid_samples ?? 0;
+              setStatus(`Optimizer found no valid solution (${rejected} rejected, ${valid} valid). Try relaxing constraints.`);
+              return;
+            }
+
+            const bestT = r.best_time_s;
+            document.getElementById('optT200').innerHTML =
+              (bestT != null && isFinite(bestT))
+                ? bestT.toFixed(3) + '<span class="unit">s</span>'
+                : '—<span class="unit">s</span>';
+
+            if (r.improvement_ms != null && isFinite(r.improvement_ms)) {
+              const ms = r.improvement_ms;
+              const sign = ms >= 0 ? '+' : '';
+              const display = Math.abs(ms) >= 1000
+                ? `${sign}${(ms / 1000).toFixed(3)}<span class="unit">s</span>`
+                : `${sign}${ms.toFixed(1)}<span class="unit">ms</span>`;
+              impEl.innerHTML = display;
+              impCard.className = ms > 0 ? 'readout success' : (ms < 0 ? 'readout danger' : 'readout');
+            } else {
+              impEl.innerHTML = '—<span class="unit">s</span>';
+              impCard.className = 'readout';
+            }
+
+            // Position recommendations
+            if (r.segment_summary) {
+              const posEl = document.getElementById('optPositions');
+              posEl.innerHTML = '<div class="kv-list">' +
+                r.segment_summary.map(seg =>
+                  `<div class="kv-row"><span class="kv-key">${seg.name || seg.segment}</span><span class="kv-value mono-value">${seg.position || seg.recommendation || '—'}</span></div>`
+                ).join('') + '</div>';
+            }
+
+            renderOptimizerCharts(r);
+
+            setStatus(
+              (bestT != null && isFinite(bestT))
+                ? 'Optimization complete: ' + bestT.toFixed(3) + 's'
+                : 'Optimization complete'
+            );
+          }
+        }
+      } catch (err) { /* polling error, ignore */ }
+    }, 500);
+
+  } catch (err) {
+    setStatus('Error: ' + err.message);
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> Run Optimizer';
+  }
+});
+
+// Chart.js defaults aligned with the panel theme
+Chart.defaults.color = '#8894AE';
+Chart.defaults.font.family = 'inherit';
+Chart.defaults.borderColor = '#1E2536';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPTIMIZER — Multi-chart viewer
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const OPT_COLORS = {
+  seated:    '#818CF8',
+  standing:  '#F43F5E',
+  accent:    '#E5A836',
+  baseline:  '#525D78',
+  optimized: '#E5A836',
+  power:     '#34D399',
+  speed:     '#38BDF8',
+  above:     'rgba(34, 197, 94, 0.25)',
+  below:     'rgba(239, 68, 68, 0.25)',
+  grid:      '#1E2536',
+  text:      '#E8ECF4',
+  muted:     '#8894AE',
+};
+
+let optMainChart = null;
+let optCurrentResult = null;
+let optCurrentTab = 'speed';
+
+const OPT_CHART_TABS = [
+  { key: 'speed',     label: 'Speed' },
+  { key: 'power',     label: 'Power' },
+  { key: 'wcda',      label: 'W/CdA' },
+  { key: 'delta',     label: 'Time Δ' },
+  { key: 'details',   label: 'Details' },
+];
+
+/* MARKER_SENTINEL_PUBLIC_DESKTOP_2026 */
+let _optTabsDelegated = false;
+function buildOptChartTabs() {
+  const bar = document.getElementById('optChartTabs');
+  bar.innerHTML = OPT_CHART_TABS.map(t =>
+    `<button type="button" class="chart-tab${t.key === optCurrentTab ? ' active' : ''}" data-key="${t.key}">${t.label}</button>`
+  ).join('');
+  bar.style.display = 'flex';
+  // Event delegation so listener survives any future innerHTML rewrites.
+  if (!_optTabsDelegated) {
+    bar.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.chart-tab');
+      if (!btn || !bar.contains(btn)) return;
+      optCurrentTab = btn.dataset.key;
+      bar.querySelectorAll('.chart-tab').forEach(b => b.classList.toggle('active', b.dataset.key === optCurrentTab));
+      console.log('[opt-tabs] switching to', optCurrentTab, 'have result:', !!optCurrentResult);
+      drawOptChart();
+    });
+    _optTabsDelegated = true;
+  }
+}
+
+function renderOptimizerCharts(r) {
+  optCurrentResult = r;
+  document.getElementById('optChartsPlaceholder').style.display = 'none';
+  document.getElementById('optChartsContainer').style.display = 'flex';
+  buildOptChartTabs();
+  drawOptChart();
+}
+
+function drawOptChart() {
+  setStatus('Switching to chart: ' + optCurrentTab);
+  if (!optCurrentResult) { console.warn('[opt-charts] no result yet'); return; }
+  if (optMainChart) { optMainChart.destroy(); optMainChart = null; }
+
+  // Tear down any old canvas/table — Chart.js can refuse to switch chart types on a reused canvas.
+  const container = document.getElementById('optChartsContainer');
+  const oldCanvas = document.getElementById('optChartMain');
+  if (oldCanvas) oldCanvas.remove();
+  const oldTable = document.getElementById('optDetailsTable');
+  if (oldTable) oldTable.remove();
+
+  const r = optCurrentResult;
+
+  // Details tab renders an HTML table, not a Chart.js chart.
+  if (optCurrentTab === 'details') {
+    const html = buildOptDetailsTable(r);
+    if (!html) { setStatus('No data for tab: details'); return; }
+    const wrap = document.createElement('div');
+    wrap.id = 'optDetailsTable';
+    wrap.style.cssText = 'flex:1; overflow:auto; min-height:0;';
+    wrap.innerHTML = html;
+    container.appendChild(wrap);
+    setStatus('Rendered table: details');
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.id = 'optChartMain';
+  container.appendChild(canvas);
+
+  const cfg = buildOptChartConfig(optCurrentTab, r);
+  if (!cfg) {
+    console.warn('[opt-charts] no config for tab', optCurrentTab, 'series keys:', {
+      base: Object.keys(r.baseline_series || {}),
+      opt:  Object.keys(r.optimized_series || {}),
+      seg_count: (r.segment_summary || []).length,
+    });
+    setStatus('No data for tab: ' + optCurrentTab);
+    return;
+  }
+  try {
+    optMainChart = new Chart(canvas, cfg);
+    console.log('[opt-charts] rendered tab', optCurrentTab);
+    setStatus('Rendered chart: ' + optCurrentTab);
+  } catch (e) {
+    console.error('[opt-charts] Chart.js threw on tab', optCurrentTab, e);
+    setStatus('Chart error on ' + optCurrentTab + ': ' + e.message);
+  }
+}
+
+// ── Shared helpers ──────────────────────────────────────────────────────────
+function optLineDataset(label, x, y, color, opts = {}) {
+  return {
+    label,
+    data: x.map((xv, i) => ({ x: xv, y: y[i] })),
+    borderColor: color,
+    backgroundColor: opts.fill ? color + '33' : 'transparent',
+    borderWidth: opts.borderWidth ?? 2,
+    borderDash: opts.dashed ? [6, 4] : [],
+    pointRadius: 0,
+    pointHitRadius: 8,
+    tension: 0.15,
+    fill: opts.fill ?? false,
+    ...opts.extra,
+  };
+}
+
+function optLinearXY(title, xLabel, yLabel, datasets, opts = {}) {
+  return {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      parsing: false, normalized: true, animation: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: {
+        title: { display: true, text: title, color: OPT_COLORS.text, font: { size: 13, weight: '600' } },
+        legend: { display: true, position: 'top', align: 'end', labels: { color: OPT_COLORS.muted, boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: opts.tooltipCallbacks || {} },
+      },
+      scales: {
+        x: { type: 'linear', title: { display: true, text: xLabel, color: OPT_COLORS.muted }, ticks: { color: OPT_COLORS.muted }, grid: { color: OPT_COLORS.grid }, min: 0, max: 895 },
+        y: { title: { display: true, text: yLabel, color: OPT_COLORS.muted }, ticks: { color: OPT_COLORS.muted }, grid: { color: OPT_COLORS.grid }, ...(opts.yScale || {}) },
+      },
+    },
+  };
+}
+
+function zoneAnnotationPlugin(chart) {
+  // Chart.js v4 hook signature: (chart, args, options) — `chart` is the Chart instance.
+  const { ctx: c, chartArea, scales } = chart;
+  if (!chartArea || !scales || !scales.x) return;
+  const x695 = scales.x.getPixelForValue(695);
+  const x895 = scales.x.getPixelForValue(895);
+  c.save();
+  c.fillStyle = 'rgba(229, 168, 54, 0.06)';
+  c.fillRect(x695, chartArea.top, x895 - x695, chartArea.bottom - chartArea.top);
+  c.setLineDash([4, 4]);
+  c.strokeStyle = 'rgba(229, 168, 54, 0.4)';
+  [x695, x895].forEach(x => { c.beginPath(); c.moveTo(x, chartArea.top); c.lineTo(x, chartArea.bottom); c.stroke(); });
+  c.restore();
+}
+const zonePlugin = { id: 'zonePlugin', afterDatasetsDraw: zoneAnnotationPlugin };
+
+// ── Chart configs ───────────────────────────────────────────────────────────
+function buildOptChartConfig(tab, r) {
+  const base = r.baseline_series || {};
+  const opt  = r.optimized_series || {};
+
+  if (tab === 'speed') {
+    const datasets = [];
+    if (base.s_m) datasets.push(optLineDataset('Baseline', base.s_m, base.v_kph, OPT_COLORS.baseline, { dashed: true }));
+    if (opt.s_m)  datasets.push(optLineDataset('Optimized', opt.s_m, opt.v_kph, OPT_COLORS.speed));
+    return {
+      ...optLinearXY('Speed vs Distance', 'Distance (m)', 'Speed (km/h)', datasets, {
+        tooltipCallbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y.toFixed(1)} km/h @ ${c.parsed.x.toFixed(0)} m` },
+      }),
+      plugins: [zonePlugin],
+    };
+  }
+
+  if (tab === 'power') {
+    const datasets = [];
+    if (base.s_m) datasets.push(optLineDataset('Baseline', base.s_m, base.P_W, OPT_COLORS.baseline, { dashed: true }));
+    if (opt.s_m)  datasets.push(optLineDataset('Optimized', opt.s_m, opt.P_W, OPT_COLORS.power));
+    return {
+      ...optLinearXY('Power vs Distance', 'Distance (m)', 'Power (W)', datasets, {
+        tooltipCallbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y.toFixed(0)} W @ ${c.parsed.x.toFixed(0)} m` },
+      }),
+      plugins: [zonePlugin],
+    };
+  }
+
+  if (tab === 'wcda') {
+    // W/CdA = P / CdA; Breakeven = 0.5 * rho * v^3
+    const rho = r.rho || 1.1627;
+    const s = opt.s_m || base.s_m;
+    const P = opt.P_W || base.P_W;
+    const CdA = opt.CdA || base.CdA;
+    const vkph = opt.v_kph || base.v_kph;
+    if (!s || !P || !CdA || !vkph) return null;
+    const actual = P.map((p, i) => (CdA[i] > 0 ? p / CdA[i] : 0));
+    const breakeven = vkph.map(kph => 0.5 * rho * Math.pow(kph / 3.6, 3));
+
+    const datasets = [
+      optLineDataset('Actual W/CdA', s, actual, OPT_COLORS.speed, { borderWidth: 2 }),
+      optLineDataset('Breakeven (0.5·ρ·v³)', s, breakeven, '#EF4444', { dashed: true }),
+    ];
+    return {
+      ...optLinearXY('Effective Aero Power (W/CdA) vs Breakeven', 'Distance (m)', 'W/m²', datasets, {
+        tooltipCallbacks: {
+          label: (c) => {
+            const i = c.dataIndex;
+            const ratio = breakeven[i] > 0 ? actual[i] / breakeven[i] : 0;
+            return `${c.dataset.label}: ${c.parsed.y.toFixed(0)} W/m² (ratio ${ratio.toFixed(2)})`;
+          },
+        },
+      }),
+      plugins: [zonePlugin],
+    };
+  }
+
+  if (tab === 'delta') {
+    // Cumulative time delta: baseline_t - optimized_t at matching s
+    if (!base.s_m || !opt.s_m) return null;
+    const s = opt.s_m;
+    const bt = opt.s_m.map(si => interp(base.s_m, base.t_s, si));
+    const ot = opt.t_s;
+    const delta_ms = s.map((_, i) => (bt[i] - ot[i]) * 1000);
+    const datasets = [
+      optLineDataset('Cumulative Δ (ms)', s, delta_ms, OPT_COLORS.accent, { fill: true, borderWidth: 2 }),
+    ];
+    return {
+      ...optLinearXY(`Cumulative Time Δ — total saved: ${delta_ms[delta_ms.length - 1]?.toFixed(1) ?? '0'} ms`, 'Distance (m)', 'Δ ms (baseline − optimized)', datasets, {
+        tooltipCallbacks: { label: (c) => `Saved ${c.parsed.y.toFixed(1)} ms by ${c.parsed.x.toFixed(0)} m` },
+      }),
+      plugins: [zonePlugin],
+    };
+  }
+
+  return null;
+}
+
+// ── Details TABLE (combined Opt | Base | Δ per metric, V1 GUI parity) ──────
+// Sampled at 10 m breakpoints, ASCENDING from start (5) to finish (895).
+function buildOptDetailsTable(r) {
+  const base = r.baseline_series || {};
+  const opt  = r.optimized_series || {};
+  const haveBase = !!(base.s_m && base.dE_kin_J && base.W_aero_J);
+  const haveOpt  = !!(opt.s_m  && opt.dE_kin_J  && opt.W_aero_J);
+  if (!haveBase && !haveOpt) return null;
+
+  const breakpoints = [];
+  for (let x = 5; x <= 895; x += 10) breakpoints.push(x);
+
+  const at = (series, key, x) => {
+    const arr = series[key];
+    if (!arr || !series.s_m) return null;
+    return arr[nearestIndex(series.s_m, x)];
+  };
+  const sub = (a, b) => (a == null || b == null) ? null : a - b;
+
+  // Column groups: [metricKey, header, fromKey, decimals, deltaDirection]
+  // direction: +1 = up_good, −1 = down_good, 0 = neutral
+  const groups = [
+    { key: 'v',     header: 'v (km/h)',  from: 'v_kph',    d: 2, dir: +1 },
+    { key: 'P',     header: 'P (W)',     from: 'P_W',      d: 0, dir:  0 },
+    { key: 'CdA',   header: 'CdA (m²)',  from: 'CdA',      d: 4, dir: -1 },
+    { key: 'dKE',   header: 'ΔKE (J)',   from: 'dE_kin_J', d: 2, dir: +1 },
+    { key: 'dPE',   header: 'ΔPE (J)',   from: 'dE_pot_J', d: 2, dir:  0 },
+    { key: 'Waero', header: 'W_aero (J)',from: 'W_aero_J', d: 2, dir: -1 },
+    { key: 'Wrr',   header: 'W_rr (J)',  from: 'W_rr_J',   d: 2, dir: -1 },
+  ];
+
+  const rows = breakpoints.map(x => {
+    const cells = { s: x };
+    // Per-step Δv from optimized (acceleration over preceding 10 m).
+    const v_opt_now  = at(opt, 'v_kph', x);
+    const v_opt_prev = at(opt, 'v_kph', x - 10);
+    cells.dv_step = (v_opt_now != null && v_opt_prev != null) ? (v_opt_now - v_opt_prev) : null;
+    for (const g of groups) {
+      cells[g.key + '_opt']  = at(opt,  g.from, x);
+      cells[g.key + '_base'] = at(base, g.from, x);
+      cells[g.key + '_delta'] = sub(cells[g.key + '_opt'], cells[g.key + '_base']);
+    }
+    return cells;
+  });
+
+  return renderCombinedDetailsTable(groups, rows);
+}
+
+function renderCombinedDetailsTable(groups, rows) {
+  const fmt = (v, d) => (v === null || v === undefined || isNaN(v)) ? '—' : v.toFixed(d);
+
+  // Header row 1 (groups), header row 2 (Opt/Base/Δ).
+  const groupCells = groups.map(g =>
+    `<th colspan="3" class="num grp">${g.header}</th>`
+  ).join('');
+  const subCells = groups.map(_ =>
+    `<th class="num sub">opt</th><th class="num sub">base</th><th class="num sub">Δ</th>`
+  ).join('');
+
+  const head = `<thead>
+    <tr>
+      <th rowspan="2">s (m)</th>
+      <th rowspan="2" class="num">Δv/10m<br><span class="sub-note">(opt)</span></th>
+      ${groupCells}
+    </tr>
+    <tr>${subCells}</tr>
+  </thead>`;
+
+  // Coloring helper for the delta sub-cell only.
+  const deltaCell = (val, decimals, dir) => {
+    if (val == null || isNaN(val)) return `<td class="num delta">—</td>`;
+    let color = '';
+    const better = (dir === +1) ? (val > 0) : (dir === -1) ? (val < 0) : false;
+    const worse  = (dir === +1) ? (val < 0) : (dir === -1) ? (val > 0) : false;
+    if (better) color = 'color: rgba(134, 239, 172, 0.95);';
+    else if (worse) color = 'color: rgba(252, 165, 165, 0.95);';
+    const sign = (val > 0 ? '+' : '');
+    return `<td class="num delta" style="${color}">${sign}${val.toFixed(decimals)}</td>`;
+  };
+
+  const body = '<tbody>' + rows.map(row => {
+    let tds = `<td>${row.s.toFixed(0)}</td><td class="num">${fmt(row.dv_step, 3)}</td>`;
+    for (const g of groups) {
+      tds += `<td class="num">${fmt(row[g.key + '_opt'], g.d)}</td>`;
+      tds += `<td class="num base">${fmt(row[g.key + '_base'], g.d)}</td>`;
+      tds += deltaCell(row[g.key + '_delta'], g.d, g.dir);
+    }
+    return `<tr>${tds}</tr>`;
+  }).join('') + '</tbody>';
+
+  return `<table class="data-table details-combined">${head}${body}</table>`;
+}
+
+function nearestIndex(arr, target) {
+  if (!arr || arr.length === 0) return 0;
+  let lo = 0, hi = arr.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] <= target) lo = mid; else hi = mid;
+  }
+  return Math.abs(arr[lo] - target) <= Math.abs(arr[hi] - target) ? lo : hi;
+}
+
+// Linear interpolation helper
+function interp(xs, ys, x) {
+  if (!xs || !ys || xs.length === 0) return 0;
+  if (x <= xs[0]) return ys[0];
+  if (x >= xs[xs.length - 1]) return ys[ys.length - 1];
+  let lo = 0, hi = xs.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (xs[mid] <= x) lo = mid; else hi = mid;
+  }
+  const t = (x - xs[lo]) / (xs[hi] - xs[lo]);
+  return ys[lo] + t * (ys[hi] - ys[lo]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE TAB — Refresh
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btnStateRefresh').addEventListener('click', () => loadStateTab());
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONFIG TAB — Save & Reset
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btnConfigSave').addEventListener('click', async () => {
+  setStatus('Saving configuration...');
+  try {
+    // Save environment
+    await API.put('/config/environment', {
+      rho_kg_m3: parseFloat(document.getElementById('cfgRho').value),
+      c_rr: parseFloat(document.getElementById('cfgCrr').value),
+      drivetrain_efficiency: parseFloat(document.getElementById('cfgEff').value),
+      mass_kg: parseFloat(document.getElementById('cfgMass').value),
+    });
+
+    // Save aero
+    await API.put('/config/aero', {
+      CdA_seated: parseFloat(document.getElementById('cfgCdaSeated').value),
+      CdA_standing: parseFloat(document.getElementById('cfgCdaStanding').value),
+      cda_bend_factor: parseFloat(document.getElementById('cfgBendFactor').value),
+    });
+
+    // Save simulation
+    await API.put('/config/simulation', {
+      ds_m: parseFloat(document.getElementById('cfgDs').value),
+      v0_m_s: parseFloat(document.getElementById('cfgV0').value),
+      s_total_m: parseFloat(document.getElementById('cfgSTotal').value),
+    });
+
+    // Save track
+    await API.put('/config/track', {
+      track: document.getElementById('cfgDefaultTrack').value,
+    });
+
+    setStatus('Configuration saved');
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+document.getElementById('btnConfigReset').addEventListener('click', async () => {
+  if (!confirm('Reset all settings to defaults?')) return;
+  setStatus('Resetting configuration...');
+  try {
+    await API.post('/config/reset');
+    loadConfigTab();
+    setStatus('Configuration reset to defaults');
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRACK TAB — Load/Save Positions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btnTrackLoad').addEventListener('click', async () => {
+  setStatus('Loading track positions...');
+  try {
+    const data = await API.get('/track/positions');
+    if (data.s_m && data.y_m) {
+      const tbody = document.getElementById('markerTable');
+      tbody.innerHTML = data.s_m.map((s, i) => `
+        <tr>
+          <td>${s.toFixed(0)} m</td>
+          <td class="num"><input type="number" class="cal-input marker-y" value="${data.y_m[i].toFixed(2)}" step="0.01" data-s="${s}" style="width:60px;"></td>
+          <td>${getSegName(s)}</td>
+        </tr>
+      `).join('');
+      setStatus('Loaded ' + data.s_m.length + ' marker positions');
+    }
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+document.getElementById('btnTrackSave').addEventListener('click', async () => {
+  const inputs = document.querySelectorAll('.marker-y');
+  if (inputs.length === 0) { setStatus('Load positions first'); return; }
+
+  const s_m = [];
+  const y_m = [];
+  inputs.forEach(inp => {
+    s_m.push(parseFloat(inp.dataset.s));
+    y_m.push(parseFloat(inp.value) || 0);
+  });
+
+  setStatus('Saving positions...');
+  try {
+    await API.put('/track/positions', { s_m, y_m });
+    setStatus('Positions saved');
+  } catch (err) { setStatus('Error: ' + err.message); }
+});
+
+function getSegName(s) {
+  if (s >= 695 && s < 750) return '200m Zone';
+  if (s >= 750 && s <= 895) return 'Finish Zone';
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Load session state on startup
+refreshSession();
+
+// Pre-populate the Power tab grid from active power curve
+// (session → config → builtin) so it's not blank on first visit.
+loadPowerGrid().catch(() => {/* server down */});
+
+// Load config defaults into sim parameter fields
+(async () => {
+  try {
+    const config = await API.get('/config');
+    const env = config.environment || {};
+    const sim = config.simulation || {};
+
+    document.getElementById('sim1Mass').value = env.rider_mass_kg || 92.0;
+    document.getElementById('sim1Rho').value = env.rho_kg_m3 || 1.1627;
+    document.getElementById('sim1Crr').value = env.c_rr || 0.002;
+    document.getElementById('sim1V0').value = sim.v0_m_s || 5.0;
+    document.getElementById('sim1Ds').value = sim.ds_m || 0.25;
+    document.getElementById('sim1Eff').value = env.drivetrain_eff || 0.98;
+  } catch (e) { /* use HTML defaults */ }
+})();
+
+// Populate tracks dropdown from API
+(async () => {
+  try {
+    const tracks = await API.get('/tracks');
+    const sel = document.getElementById('trackSelect');
+    sel.innerHTML = '';
+    for (const [key, track] of Object.entries(tracks)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = track.name;
+      sel.appendChild(opt);
+    }
+    // Also populate config tab track dropdown
+    const cfgSel = document.getElementById('cfgDefaultTrack');
+    cfgSel.innerHTML = '';
+    for (const [key, track] of Object.entries(tracks)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = track.name;
+      cfgSel.appendChild(opt);
+    }
+  } catch (e) { /* static file mode — keep defaults */ }
+})();
+</script>
+</body>
+</html>

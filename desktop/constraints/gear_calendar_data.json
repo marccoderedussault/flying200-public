@@ -1,0 +1,260 @@
+{
+  "2025-03-02": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200}
+    ]
+  },
+  "2025-03-09": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-03-13": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-03-30": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200}
+    ]
+  },
+  "2025-04-06": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 3, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-04-13": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 3, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-04-20": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 3, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-04-27": {
+    "efforts": [
+      {"chainring": 57, "cog": 14, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 14, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 14, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 14, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-05-07": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-05-10": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-05-12": {
+    "efforts": [
+      {"chainring": 55, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 13, "effort_index": 2, "effort_type": 200}
+    ]
+  },
+  "2025-05-13": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-06-19": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 3, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-06-28": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 3, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-07-08": {
+    "_note": "MIXED GEARS: efforts 1-2 on 55/12, efforts 3-4 on 57/13",
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-07-13": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200}
+    ]
+  },
+  "2025-07-20": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200}
+    ]
+  },
+  "2025-07-27": {
+    "_note": "MIXED GEARS: 55/12, 55/13, 57/13",
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 4, "effort_type": 200}
+    ]
+  },
+  "2025-08-29": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-09-20": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200}
+    ]
+  },
+  "2025-10-12": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200}
+    ]
+  },
+  "2025-10-16": {
+    "efforts": [
+      {"chainring": 57, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 13, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-10-26": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-10-30": {
+    "efforts": [
+      {"chainring": 57, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 57, "cog": 12, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-11-12": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-11-16": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200}
+    ]
+  },
+  "2025-12-04": {
+    "_note": "MIXED GEARS: effort 1 on 55/13, efforts 2-4 on 55/12",
+    "efforts": [
+      {"chainring": 55, "cog": 13, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 3, "effort_type": 200}
+    ]
+  },
+  "2025-12-07": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200}
+    ]
+  },
+  "2025-12-21": {
+    "efforts": [
+      {"chainring": 55, "cog": 14, "effort_index": 0, "effort_type": 200}
+    ]
+  },
+  "2025-12-26": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200}
+    ]
+  },
+  "2025-12-28": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 2, "effort_type": 200}
+    ]
+  },
+  "2025-12-31": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200}
+    ]
+  },
+  "2026-01-04": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200},
+      {"chainring": 55, "cog": 12, "effort_index": 1, "effort_type": 200}
+    ]
+  },
+  "2026-01-07": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200}
+    ]
+  },
+  "2026-01-10": {
+    "efforts": [
+      {"chainring": 55, "cog": 12, "effort_index": 0, "effort_type": 200}
+    ]
+  }
+}

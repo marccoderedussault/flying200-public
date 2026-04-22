@@ -1,0 +1,11 @@
+# Flying 200 Desktop — Python dependencies.
+# Pinned with conservative lower bounds; tested on Python 3.12.
+
+numpy>=1.24
+scipy>=1.11
+pandas>=2.0
+fitparse>=1.2
+flask>=2.3
+matplotlib>=3.7
+requests>=2.31
+pytest>=7.4
