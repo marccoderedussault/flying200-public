@@ -4,6 +4,12 @@ A physics simulator for the **Flying 200 m** event in track cycling. Drop in a p
 file from a real ride, and the tool detects the effort, calibrates an aerodynamic
 model against the actual lap time, then proposes a faster pacing and line strategy.
 
+![Flying 200 web GUI — Simulate tab showing baseline vs modified run](docs/screenshot.png)
+
+The shot above is the Simulate tab with two parallel runs side-by-side: baseline (left)
+locked to a real 10.965 s effort, modified (middle) with editable parameter overrides
+and an inline profile editor, delta panel (right) showing the per-metric difference.
+
 The Flying 200 is the qualifier for the Sprint event in track cycling. The rider
 gets a 300 m flying wind-up, then is timed over the final 200 m. Tens of milliseconds
 matter; the difference between a podium and tenth place is often under 100 ms.
